@@ -241,9 +241,67 @@ function draw() {
         if (en.invincibleUntil && now < en.invincibleUntil) {
             ctx.strokeStyle = C.white; ctx.lineWidth = 3; ctx.strokeRect(sX+2, sY+7, 46, 36);
         }
-        ctx.fillStyle = color; ctx.fillRect(sX+5, sY+10, 40, 30); 
+        ctx.fillStyle = color; ctx.fillRect(sX+5, sY+10, 40, 30);
         ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 9px Consolas"; ctx.textAlign="center"; ctx.textBaseline = "middle"; ctx.fillText(text, sX+25, sY+25);
-        ctx.fillStyle = color; ctx.font = "10px Consolas"; ctx.fillText(`// ${en.state || 'idle'}`, sX+25, sY+2);
+        // Mostra o estado/ação do glitch como um trecho de código JS (VS Code style)
+        let stateLabel = en.state || 'IDLE';
+        let codeLine = '';
+        switch (stateLabel) {
+            case 'FUGINDO':
+            case 'PANIC':
+                codeLine = 'if (danger) run();';
+                break;
+            case 'EXPLODIR':
+            case 'BOOM!':
+                codeLine = 'if (nearPlayer) bomb();';
+                break;
+            case 'ARMADILHA':
+            case 'TRAP':
+                codeLine = 'if (trapReady) placeTrap();';
+                break;
+            case 'VAGANDO':
+            case 'WANDER':
+                codeLine = 'while(true) walkRandom();';
+                break;
+            case 'PARADO':
+            case 'IDLE':
+                codeLine = '// idle';
+                break;
+            case 'ATACAR':
+            case 'ATK':
+                codeLine = 'attack(player);';
+                break;
+            case 'AVANÇAR':
+                codeLine = 'moveTo(player);';
+                break;
+            case 'PERSEGUIR':
+                codeLine = 'chase(player);';
+                break;
+            case 'ESPREITAR':
+                codeLine = 'stalk(player);';
+                break;
+            case 'MIRAR':
+                codeLine = 'if (aligned) shoot();';
+                break;
+            case 'CERCAR':
+                codeLine = 'intercept(player);';
+                break;
+            case 'OBSERVAR':
+                codeLine = 'watch(player);';
+                break;
+            default:
+                codeLine = `// ${stateLabel.toLowerCase()}`;
+        }
+        // Estilo VS Code: cor de comentário para idle, azul para ação, laranja para perigo, etc.
+        let codeColor = '#cccccc';
+        if (codeLine.startsWith('if')) codeColor = '#569cd6'; // azul VS Code
+        else if (codeLine.startsWith('while')) codeColor = '#dcdcaa'; // amarelo
+        else if (codeLine.startsWith('attack') || codeLine.startsWith('bomb') || codeLine.startsWith('placeTrap')) codeColor = '#ce9178'; // laranja
+        else if (codeLine.startsWith('//')) codeColor = '#858585'; // cinza comentário
+        else if (codeLine.startsWith('moveTo') || codeLine.startsWith('chase') || codeLine.startsWith('stalk') || codeLine.startsWith('intercept') || codeLine.startsWith('watch')) codeColor = '#4ec9b0'; // verde água
+        ctx.fillStyle = codeColor;
+        ctx.font = "10px 'Fira Mono', 'Consolas', monospace";
+        ctx.fillText(codeLine, sX+25, sY+2);
     });
 
     // Desenha os Jogadores

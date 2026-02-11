@@ -169,9 +169,19 @@ function calculateGlitchMove(glitch, players, getTileAt, activeBombs, powerUps, 
         if (Math.random() < 0.3) return { action: 'bomb', state: 'ATK' };
     }
 
-    if (bestMove) return { action: 'move', x: bestMove.x, y: bestMove.y, state: glitch.type.toUpperCase() };
-    
-    return randomMove(glitch, getTileAt, activeBombs, dangerMap, 'WAIT');
+    if (bestMove) {
+        // Para tipos conhecidos, retorna um estado de ação amigável
+        let moveState = 'AVANÇAR';
+        if (glitch.type === 'red') moveState = 'AVANÇAR';
+        else if (glitch.type === 'blue') moveState = 'PERSEGUIR';
+        else if (glitch.type === 'purple') moveState = 'ESPREITAR';
+        else if (glitch.type === 'cyan') moveState = 'MIRAR';
+        else if (glitch.type === 'orange') moveState = 'CERCAR';
+        else if (glitch.type === 'yellow') moveState = 'OBSERVAR';
+        // Para qualquer outro, usa 'AVANÇAR'
+        return { action: 'move', x: bestMove.x, y: bestMove.y, state: moveState };
+    }
+    return randomMove(glitch, getTileAt, activeBombs, dangerMap, 'PARADO');
 }
 
 function randomMove(glitch, getTileAt, activeBombs, dangerMap, state) {

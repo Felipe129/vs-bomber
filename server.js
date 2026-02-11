@@ -191,6 +191,9 @@ setInterval(() => {
                     setTimeout(() => combat.detonateBomb(bid, en.id, getGameContext()), 2000);
                 }
             }
+        } else {
+            // Se não houve decisão, mantenha o último estado ou defina como 'IDLE'
+            if (!en.state) en.state = 'IDLE';
         }
     });
     if (enemyUpdate) io.emit('enemiesUpdate', enemies);
