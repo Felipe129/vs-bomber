@@ -322,8 +322,23 @@ function draw() {
         
         // Código de desenho do jogador
         ctx.globalAlpha = (p.ghostUntil && Date.now() < p.ghostUntil) ? 0.5 : 1.0;
-        ctx.fillStyle = p.color; 
-        ctx.fillRect(sX+10, sY+10, 30, 30); 
+        ctx.fillStyle = p.color;
+        ctx.fillRect(sX+10, sY+10, 30, 30);
+        // Desenha seta minimalista (>) indicando direção
+        ctx.save();
+        ctx.translate(sX+25, sY+25); // centro do player
+        let rot = 0;
+        if (p.facing === 'up') rot = -Math.PI/2;
+        else if (p.facing === 'down') rot = Math.PI/2;
+        else if (p.facing === 'left') rot = Math.PI;
+        // right ou indefinido = 0
+        ctx.rotate(rot);
+        ctx.font = "bold 18px Consolas";
+        ctx.fillStyle = '#222'; // cinza escuro
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('>', 0, 0);
+        ctx.restore();
         ctx.globalAlpha = 1.0;
         
         ctx.textAlign = "center"; 

@@ -3,90 +3,6 @@
     "id": "SYSTEM",
     "text": "[NET] Felipe connected.",
     "system": true,
-    "timestamp": "11/02/2026 17:38:11"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
-    "system": true,
-    "timestamp": "11/02/2026 17:38:43"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:38:45"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe disconnected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:40:56"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:40:57"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] test disconnected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:41:19"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <green>",
-    "system": true,
-    "timestamp": "11/02/2026 17:41:32"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:41:34"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:41:51"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:44:28"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <green>",
-    "system": true,
-    "timestamp": "11/02/2026 17:44:58"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:45:01"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe disconnected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:45:10"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 17:45:13"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
     "timestamp": "11/02/2026 17:46:20"
   },
   {
@@ -298,5 +214,89 @@
     "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
     "system": true,
     "timestamp": "11/02/2026 18:16:45"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:19:29"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:19:31"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
+    "system": true,
+    "timestamp": "11/02/2026 18:20:05"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:20:07"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <cyan>",
+    "system": true,
+    "timestamp": "11/02/2026 18:20:20"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:20:21"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 18:20:49"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <green>",
+    "system": true,
+    "timestamp": "11/02/2026 18:21:32"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:21:35"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:21:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:25:47"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:27:21"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
+    "system": true,
+    "timestamp": "11/02/2026 18:27:57"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 18:27:58"
   }
 ]
