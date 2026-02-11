@@ -175,7 +175,7 @@ function draw() {
         if (p.rx === undefined) { p.rx = p.x; p.ry = p.y; }
         
         // LERP: Seu jogador é quase instantâneo, os outros são suaves
-        const speed = (p.id === myId) ? 0.2 : 0.15;
+        const speed = (p.id === myId) ? 0.35 : 0.15;
         p.rx = lerp(p.rx, p.x, speed);
         p.ry = lerp(p.ry, p.y, speed);
 
@@ -192,7 +192,15 @@ function draw() {
         ctx.textAlign = "center"; 
         ctx.font = "11px Consolas";
         ctx.fillStyle = C.blue; 
-        ctx.fillText(`[${p.x}, ${p.y}]`, sX+25, sY-15);
+        ctx.textAlign = "center"; 
+        
+        ctx.font = "11px Consolas";
+        ctx.fillStyle = C.blue; 
+        ctx.fillStyle = C.blue; ctx.fillText(`${p.name}`, sX+25, sY-15);
+        
+        ctx.font = "9px Consolas";
+        ctx.fillStyle = C.text; 
+        ctx.fillText(`[${p.x}, ${p.y}]`, sX+25, sY-1);
     });
 
     explosions = explosions.filter(ex => Date.now() - ex.time < 1000); 
