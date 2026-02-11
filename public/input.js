@@ -35,10 +35,10 @@ document.addEventListener('keydown', e => {
     let nX = players[myId].x;
     let nY = players[myId].y;
 
-    if (e.key === 'ArrowUp') { nY--; players[myId].facing = 'up'; }
-    if (e.key === 'ArrowDown') { nY++; players[myId].facing = 'down'; }
-    if (e.key === 'ArrowLeft') { nX--; players[myId].facing = 'left'; }
-    if (e.key === 'ArrowRight') { nX++; players[myId].facing = 'right'; }
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { nY--; players[myId].facing = 'up'; }
+    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') { nY++; players[myId].facing = 'down'; }
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { nX--; players[myId].facing = 'left'; }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { nX++; players[myId].facing = 'right'; }
 
     if (nX === players[myId].x && nY === players[myId].y) return;
 

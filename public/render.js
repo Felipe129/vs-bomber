@@ -224,7 +224,7 @@ function draw() {
             // Usa espaçamento fixo em pixels para centralizar perfeitamente
             ctx.font = "bold 16px Consolas";
             ctx.fillStyle = "#999999";
-            ctx.fillText("// SETAS para Mover", spawnCenterX, spawnCenterY - 50);
+            ctx.fillText("// SETAS ou WASDpara Mover", spawnCenterX, spawnCenterY - 50);
             ctx.fillText("// ESPAÇO para Bomba", spawnCenterX, spawnCenterY - 25);
             ctx.fillText("// ENTER para Chat", spawnCenterX, spawnCenterY);
 
