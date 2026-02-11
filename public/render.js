@@ -93,7 +93,12 @@ function draw() {
         en.ry = damp(en.ry, en.y, en.vy, smoothTimeOther, deltaTime);
     });
 
-    const camX = players[myId].rx, camY = players[myId].ry;
+    // Suavização de câmera
+    if (window.cam === undefined) window.cam = { x: players[myId].rx, y: players[myId].ry, vx: { value: 0 }, vy: { value: 0 } };
+    window.cam.x = damp(window.cam.x, players[myId].rx, window.cam.vx, 0.22, deltaTime);
+    window.cam.y = damp(window.cam.y, players[myId].ry, window.cam.vy, 0.22, deltaTime);
+
+    const camX = window.cam.x, camY = window.cam.y;
     const centerX = canvas.width/2, centerY = canvas.height/2;
 
     // --- SISTEMA DE ZOOM DINÂMICO ---
