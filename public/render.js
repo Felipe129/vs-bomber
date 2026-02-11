@@ -212,13 +212,25 @@ function draw() {
         if (spawnCenterX > -300 && spawnCenterX < canvas.width + 300 &&
             spawnCenterY > -300 && spawnCenterY < canvas.height + 300) {
             
+            // --- VS Code style welcome and credits ---
+            ctx.font = "bold 18px Consolas";
+            ctx.fillStyle = "#6a9955"; // green comment
+            ctx.fillText("// Bem-vindo ao VS Bomber", spawnCenterX, spawnCenterY - 100);
+
+            ctx.font = "14px Consolas";
+            ctx.fillStyle = "#cccccc";
+            ctx.fillText("// desenvolvido por Felipe R. Richter", spawnCenterX, spawnCenterY - 80);
+
             // Usa espaçamento fixo em pixels para centralizar perfeitamente
+            ctx.font = "bold 16px Consolas";
+            ctx.fillStyle = "#999999";
             ctx.fillText("// SETAS para Mover", spawnCenterX, spawnCenterY - 50);
             ctx.fillText("// ESPAÇO para Bomba", spawnCenterX, spawnCenterY - 25);
             ctx.fillText("// ENTER para Chat", spawnCenterX, spawnCenterY);
-            
+
             // Mensagem extra um pouco mais abaixo com estilo diferente
             ctx.font = "italic 14px Consolas";
+            ctx.fillStyle = "#569cd6"; // blue for code
             ctx.fillText("console.log('Have Fun!');", spawnCenterX, spawnCenterY + 60);
         }
         ctx.restore();

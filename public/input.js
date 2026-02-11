@@ -42,13 +42,14 @@ document.addEventListener('keydown', e => {
 
     if (nX === players[myId].x && nY === players[myId].y) return;
 
-    // Verifica se o caminho está livre usando a função do render.js
-    const isFree = typeof getTileAt === 'function' && getTileAt(nX, nY) === 0;
+    // Permite atravessar paredes (tile 2) se estiver em modo ghost
+    let canGhost = players[myId].ghostUntil && Date.now() < players[myId].ghostUntil;
+    let tileType = typeof getTileAt === 'function' ? getTileAt(nX, nY) : 1;
+    const isFree = (tileType === 0) || (canGhost && tileType === 2);
     const hasBomb = typeof activeBombs !== 'undefined' && Array.from(activeBombs.values()).some(b => b.x === nX && b.y === nY);
 
     if (isFree && !hasBomb) {
         lastStep = now;
-        
         // Predição: Move instantaneamente na tela do cliente
         players[myId].x = nX;
         players[myId].y = nY;
