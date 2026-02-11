@@ -1,0 +1,302 @@
+[
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:35:33"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:35:49"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:35:57"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 15:40:45"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:45:12"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:45:56"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: committed suicide",
+    "system": true,
+    "timestamp": "11/02/2026 15:46:01"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:46:07"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:46:08"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
+    "system": true,
+    "timestamp": "11/02/2026 15:46:18"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:46:28"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:46:33"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:46:48"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:51:16"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:51:30"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:51:53"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
+    "system": true,
+    "timestamp": "11/02/2026 15:52:29"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:52:30"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
+    "system": true,
+    "timestamp": "11/02/2026 15:52:40"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:52:42"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
+    "system": true,
+    "timestamp": "11/02/2026 15:53:32"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 15:55:10"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
+    "system": true,
+    "timestamp": "11/02/2026 15:55:23"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 15:56:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:01:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 16:03:16"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:06:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:11:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:16:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:21:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:26:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:31:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:36:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:41:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 16:46:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 16:49:45"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 16:50:49"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 16:50:54"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 16:50:55"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 16:51:43"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 16:53:58"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 16:56:06"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 17:01:03"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 17:06:03"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 17:11:03"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
+    "system": true,
+    "timestamp": "11/02/2026 17:16:03"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:17:51"
+  },
+  {
+    "id": "Zyt8yieSMJgNZ8aCAAAD",
+    "name": "Felipe",
+    "text": "Teste",
+    "timestamp": "11/02/2026 17:17:54"
+  },
+  {
+    "id": "Zyt8yieSMJgNZ8aCAAAD",
+    "name": "Felipe",
+    "text": "Testando",
+    "timestamp": "11/02/2026 17:18:09"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
+    "system": true,
+    "timestamp": "11/02/2026 17:18:24"
+  }
+]
