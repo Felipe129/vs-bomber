@@ -69,15 +69,28 @@ function draw() {
     const now = performance.now();
     const lerpSpeed = 0.2; // (legacy, can be removed if not used elsewhere)
 
-    // Suaviza a movimentação visual (Interpolação)
+    // Suaviza a movimentação visual (Interpolação com velocity e deltaTime)
+    const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.05); // Clamp para estabilidade
+    lastFrameTime = now;
+    // Parâmetros de suavização
+    const smoothTimeSelf = 0.13; // Jogador local (mais responsivo)
+    const smoothTimeOther = 0.22; // Outros jogadores e glitches (mais suave)
+
     Object.values(players).forEach(p => {
         if (p.rx === undefined) { p.rx = p.x; p.ry = p.y; }
-        p.rx = lerp(p.rx, p.x, lerpSpeed); p.ry = lerp(p.ry, p.y, lerpSpeed);
+        if (!p.vx) p.vx = { value: 0 };
+        if (!p.vy) p.vy = { value: 0 };
+        const st = (p.id === myId) ? smoothTimeSelf : smoothTimeOther;
+        p.rx = damp(p.rx, p.x, p.vx, st, deltaTime);
+        p.ry = damp(p.ry, p.y, p.vy, st, deltaTime);
     });
     Object.values(enemies).forEach(en => {
         if (en.rx === undefined || isNaN(en.rx)) en.rx = en.x;
         if (en.ry === undefined || isNaN(en.ry)) en.ry = en.y;
-        en.rx = lerp(en.rx, en.x, 0.15); en.ry = lerp(en.ry, en.y, 0.15);
+        if (!en.vx) en.vx = { value: 0 };
+        if (!en.vy) en.vy = { value: 0 };
+        en.rx = damp(en.rx, en.x, en.vx, smoothTimeOther, deltaTime);
+        en.ry = damp(en.ry, en.y, en.vy, smoothTimeOther, deltaTime);
     });
 
     const camX = players[myId].rx, camY = players[myId].ry;
@@ -104,8 +117,7 @@ function draw() {
     const leftBound = centerX - visibleWidth / 2;
     const rightBound = centerX + visibleWidth / 2;
     const topBound = centerY - visibleHeight / 2;
-    const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.05); // Clamp to 50ms max for stability
-    lastFrameTime = now;
+    // deltaTime e lastFrameTime já definidos acima
     const bottomBound = centerY + visibleHeight / 2;
 
     const offsetX = (centerX - camX * TILE_SIZE);

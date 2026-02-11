@@ -1,84 +1,6 @@
 [
   {
     "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 15:52:42"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
-    "system": true,
-    "timestamp": "11/02/2026 15:53:32"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe connected.",
-    "system": true,
-    "timestamp": "11/02/2026 15:55:10"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <yellow>",
-    "system": true,
-    "timestamp": "11/02/2026 15:55:23"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
-    "system": true,
-    "timestamp": "11/02/2026 15:56:51"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
-    "system": true,
-    "timestamp": "11/02/2026 16:01:51"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[NET] Felipe disconnected.",
-    "system": true,
-    "timestamp": "11/02/2026 16:03:16"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
-    "system": true,
-    "timestamp": "11/02/2026 16:06:51"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
-    "system": true,
-    "timestamp": "11/02/2026 16:11:51"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
-    "system": true,
-    "timestamp": "11/02/2026 16:16:51"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
-    "system": true,
-    "timestamp": "11/02/2026 16:21:51"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
-    "system": true,
-    "timestamp": "11/02/2026 16:26:51"
-  },
-  {
-    "id": "SYSTEM",
-    "text": "[SYSTEM] Garbage Collection executed. Map reset.",
-    "system": true,
-    "timestamp": "11/02/2026 16:31:51"
-  },
-  {
-    "id": "SYSTEM",
     "text": "[SYSTEM] Garbage Collection executed. Map reset.",
     "system": true,
     "timestamp": "11/02/2026 16:36:51"
@@ -298,5 +220,83 @@
     "text": "[NET] Felipe connected.",
     "system": true,
     "timestamp": "11/02/2026 17:38:45"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:40:56"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:40:57"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] test disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:41:19"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <green>",
+    "system": true,
+    "timestamp": "11/02/2026 17:41:32"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:41:34"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:41:51"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:44:28"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: eliminated by Glitch <green>",
+    "system": true,
+    "timestamp": "11/02/2026 17:44:58"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:45:01"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe disconnected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:45:10"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:45:13"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[NET] Felipe connected.",
+    "system": true,
+    "timestamp": "11/02/2026 17:46:20"
+  },
+  {
+    "id": "SYSTEM",
+    "text": "[SYSTEM] Felipe: Fatal Error: committed suicide",
+    "system": true,
+    "timestamp": "11/02/2026 17:46:32"
   }
 ]
