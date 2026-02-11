@@ -1,0 +1,195 @@
+// public/render.js
+
+// Paleta VS Code Dark Modern
+const C = {
+    bg: '#1f1f1f', grid: '#2b2b2b', wall: '#181818', block: '#37373d', blockInf: '#4d2d2d', safe: '#26264f',
+    text: '#cccccc', blue: '#569cd6', green: '#6a9955', orange: '#ce9178', purple: '#c586c0', red: '#f14c4c', yellow: '#dcdcaa', white: '#ffffff'
+};
+
+const lerp = (start, end, amt) => (1 - amt) * start + amt * end;
+
+function getTileAt(gx, gy) {
+    if (destroyedBlocks.has(`${gx},${gy}`)) return 0;
+    if (Math.abs(gx) <= 5 && Math.abs(gy) <= 5) return 0; 
+    if (gx % 2 === 0 && gy % 2 === 0) return 1;
+    const val = Math.abs(Math.sin(gx * 12.9898 + gy * 78.233) * 43758.5453) % 1;
+    const dist = Math.max(Math.abs(gx), Math.abs(gy));
+    const threshold = dist > 10 ? 0.55 : 0.82;
+    return val > threshold ? 2 : 0;
+}
+
+// --- CARREGA O ZOOM SALVO ---
+const savedZoom = localStorage.getItem('vsbomber_zoom');
+// Se existir um salvamento, usa ele. Se não, o padrão é 12 blocos.
+window.targetVisibleBlocks = savedZoom !== null ? parseFloat(savedZoom) : 12;
+
+window.updateZoom = (val) => { 
+    window.targetVisibleBlocks = parseFloat(val); 
+    localStorage.setItem('vsbomber_zoom', val); // Salva no navegador
+};
+
+function updateTimerUI() {
+    if (!joined) return;
+    const now = Date.now();
+    let diff = Math.max(0, roundEndTime - now);
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    const formatted = `timer_${mins}:${secs.toString().padStart(2, '0')}.js`;
+    
+    const el = document.getElementById('timer-tab-text');
+    if (el) el.innerText = formatted;
+}
+
+function draw() {
+    updateTimerUI();
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = C.bg; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    if (!joined || !players[myId]) return requestAnimationFrame(draw);
+    
+    const now = Date.now();
+    const lerpSpeed = 0.2; 
+
+    // Suaviza a movimentação visual (Interpolação)
+    Object.values(players).forEach(p => {
+        if (p.rx === undefined) { p.rx = p.x; p.ry = p.y; }
+        p.rx = lerp(p.rx, p.x, lerpSpeed); p.ry = lerp(p.ry, p.y, lerpSpeed);
+    });
+    Object.values(enemies).forEach(en => {
+        if (en.rx === undefined || isNaN(en.rx)) en.rx = en.x;
+        if (en.ry === undefined || isNaN(en.ry)) en.ry = en.y;
+        en.rx = lerp(en.rx, en.x, 0.15); en.ry = lerp(en.ry, en.y, 0.15);
+    });
+
+    const camX = players[myId].rx, camY = players[myId].ry;
+    const centerX = canvas.width/2, centerY = canvas.height/2;
+
+    // --- SISTEMA DE ZOOM DINÂMICO ---
+    const targetHeight = window.targetVisibleBlocks * TILE_SIZE; 
+    let zoom = canvas.height / targetHeight;
+    
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-centerX, -centerY);
+
+    const visibleWidth = canvas.width / zoom;
+    const visibleHeight = canvas.height / zoom;
+
+    const viewRadiusX = Math.ceil(visibleWidth / TILE_SIZE / 2) + 2;
+    const viewRadiusY = Math.ceil(visibleHeight / TILE_SIZE / 2) + 2;
+
+    // --- DESENHA O GRID DINÂMICO ---
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
+    
+    const leftBound = centerX - visibleWidth / 2;
+    const rightBound = centerX + visibleWidth / 2;
+    const topBound = centerY - visibleHeight / 2;
+    const bottomBound = centerY + visibleHeight / 2;
+
+    const offsetX = (centerX - camX * TILE_SIZE);
+    const offsetY = (centerY - camY * TILE_SIZE);
+    
+    const gridStartX = leftBound - ((leftBound - offsetX) % TILE_SIZE) - TILE_SIZE;
+    const gridStartY = topBound - ((topBound - offsetY) % TILE_SIZE) - TILE_SIZE;
+
+    for(let i = gridStartX; i < rightBound + TILE_SIZE; i += TILE_SIZE) { 
+        ctx.beginPath(); ctx.moveTo(i, topBound); ctx.lineTo(i, bottomBound); ctx.stroke(); 
+    }
+    for(let i = gridStartY; i < bottomBound + TILE_SIZE; i += TILE_SIZE) { 
+        ctx.beginPath(); ctx.moveTo(leftBound, i); ctx.lineTo(rightBound, i); ctx.stroke(); 
+    }
+
+    // Desenha o mapa (Paredes, Blocos, Itens e Bombas)
+    for (let r = -viewRadiusY; r <= viewRadiusY; r++) {
+        for (let c = -viewRadiusX; c <= viewRadiusX; c++) {
+            const wX = Math.round(camX) + c, wY = Math.round(camY) + r;
+            const sX = centerX + (wX - camX) * TILE_SIZE - TILE_SIZE/2;
+            const sY = centerY + (wY - camY) * TILE_SIZE - TILE_SIZE/2;
+            const tile = getTileAt(wX, wY); 
+            
+            if (Math.abs(wX) <= 5 && Math.abs(wY) <= 5) { ctx.fillStyle = C.safe; ctx.fillRect(sX, sY, TILE_SIZE, TILE_SIZE); }
+            if (tile === 1) { ctx.fillStyle = C.wall; ctx.fillRect(sX, sY, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#222'; ctx.fillRect(sX+2, sY+2, TILE_SIZE-4, TILE_SIZE-4); }
+            if (tile === 2) {
+                const isInf = (Math.max(Math.abs(wX), Math.abs(wY)) > 20) && (Math.abs(Math.cos(wX * 43.11 + wY * 18.23) * 1234.56) % 1 < 0.005);
+                ctx.fillStyle = isInf ? C.blockInf : C.block; ctx.fillRect(sX+1, sY+1, TILE_SIZE-2, TILE_SIZE-2);
+                if(isInf) { ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.strokeRect(sX+2, sY+2, TILE_SIZE-4, TILE_SIZE-4); }
+            }
+
+            if (powerUps.has(`${wX},${wY}`)) {
+                const item = powerUps.get(`${wX},${wY}`); 
+                let color = C.white; let text = '?';
+                if (item.type === 'bomb') { color = C.blue; text = 'bomb++'; } else if (item.type === 'fire') { color = C.orange; text = 'fire++'; } else if (item.type === 'kick') { color = C.yellow; text = 'kick()'; } else if (item.type === 'ghost') { color = C.purple; text = 'ghost'; } else if (item.type === 'speed') { color = C.green; text = 'speed++'; } else if (item.type === 'pierce') { color = C.red; text = 'pierce'; } 
+                ctx.fillStyle = '#252526'; ctx.fillRect(sX+5, sY+5, 40, 40); 
+                ctx.strokeStyle = color; ctx.strokeRect(sX+5, sY+5, 40, 40); 
+                ctx.fillStyle = color; ctx.font = "bold 10px Consolas"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, sX+25, sY+25);
+            }
+
+            if (currentBombs.some(b => b.x === wX && b.y === wY)) { 
+                const bomb = currentBombs.find(b => b.x === wX && b.y === wY);
+                const color = bomb.isPierce ? C.purple : C.blue;
+                const tag = bomb.isPierce ? "<pierce>" : "<bomb>";
+                ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sX+25, sY+25, 18, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 10px Consolas"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(tag, sX+25, sY+25);
+            }
+            
+            const exp = explosions.find(ex => ex.x === wX && ex.y === wY);
+            if (exp) {
+                const color = exp.isPierce ? C.purple : C.orange; 
+                ctx.fillStyle = color; ctx.globalAlpha = 0.8; ctx.fillRect(sX, sY, TILE_SIZE, TILE_SIZE);
+                ctx.globalAlpha = 1.0; 
+                ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 12px Consolas"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("<fire>", sX+25, sY+25);
+            }
+        }
+    }
+
+    // Desenha os Inimigos
+    Object.values(enemies).forEach(en => {
+        const sX = centerX + (en.rx - camX) * TILE_SIZE - TILE_SIZE/2;
+        const sY = centerY + (en.ry - camY) * TILE_SIZE - TILE_SIZE/2;
+        let color = C.green; let text = "<enemy>";
+        switch(en.type) {
+            case 'red': color = C.red; text = "<kamikaze>"; break;
+            case 'blue': color = "#4a90e2"; text = "<tank>"; break;
+            case 'purple': color = C.purple; text = "<ghost>"; break;
+            case 'cyan': color = "#00ffff"; text = "<sniper>"; break;
+            case 'orange': color = "#ff8c00"; text = "<trapper>"; break;
+            case 'yellow': color = C.yellow; text = "<warn>"; break;
+        }
+        if (en.isBuffed) { color = C.red; text = "<error>"; }
+        if (en.invincibleUntil && now < en.invincibleUntil) {
+            ctx.strokeStyle = C.white; ctx.lineWidth = 3; ctx.strokeRect(sX+2, sY+7, 46, 36);
+        }
+        ctx.fillStyle = color; ctx.fillRect(sX+5, sY+10, 40, 30); 
+        ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 9px Consolas"; ctx.textAlign="center"; ctx.textBaseline = "middle"; ctx.fillText(text, sX+25, sY+25);
+        ctx.fillStyle = color; ctx.font = "10px Consolas"; ctx.fillText(`// ${en.state || 'idle'}`, sX+25, sY+2);
+    });
+
+    // Desenha os Jogadores
+    Object.values(players).forEach(p => {
+        if (p.isDead) return;
+        const sX = centerX + (p.rx - camX) * TILE_SIZE - TILE_SIZE/2;
+        const sY = centerY + (p.ry - camY) * TILE_SIZE - TILE_SIZE/2;
+        ctx.globalAlpha = (p.ghostUntil && now < p.ghostUntil) ? 0.5 : 1.0;
+        ctx.fillStyle = p.color; ctx.fillRect(sX+10, sY+10, 30, 30); 
+        ctx.globalAlpha = 1.0;
+        ctx.textAlign = "center"; ctx.font = "11px Consolas";
+        ctx.fillStyle = C.blue; ctx.fillText(`[${p.x}, ${p.y}]`, sX+25, sY-15); 
+        ctx.fillStyle = C.white; ctx.fillText(`<${p.name}>`, sX+25, sY-3); 
+        if (p.chatText && Date.now() - p.chatTime < 4000) {
+            ctx.fillStyle = "#252526"; ctx.fillRect(sX - 60, sY - 45, 170, 25);
+            ctx.strokeStyle = "#444"; ctx.strokeRect(sX - 60, sY - 45, 170, 25);
+            ctx.fillStyle = C.orange; ctx.fillText(`"${p.chatText}"`, sX + 25, sY - 28);
+        }
+    });
+
+    explosions = explosions.filter(ex => Date.now() - ex.time < 1000); 
+    
+    ctx.restore();
+    requestAnimationFrame(draw);
+}
+
+// Inicia o loop gráfico
+draw();
