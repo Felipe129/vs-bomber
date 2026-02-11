@@ -152,9 +152,38 @@ socket.on('timedNotification', data => {
 });
 
 socket.on('playerMoved', p => {
-    if (players[p.id]) { p.rx = players[p.id].rx; p.ry = players[p.id].ry; } else { p.rx = p.x; p.ry = p.y; }
-    players[p.id] = p;
-    if (p.id === myId) { myPos = p; sfx.move(); } 
+    if (p.id === myId) {
+        if (players[myId]) {
+            // Reconciliação: Verifica se o servidor discorda muito da nossa posição local
+            const errorX = Math.abs(players[myId].x - p.x);
+            const errorY = Math.abs(players[myId].y - p.y);
+            
+            // Se o erro for maior que 1 bloco de distância, força a correção (ex: teleportes/erros)
+            if (errorX > 1 || errorY > 1) {
+                players[myId].x = p.x;
+                players[myId].y = p.y;
+                players[myId].rx = p.x;
+                players[myId].ry = p.y;
+            }
+            
+            // Atualiza status sem resetar a posição x/y local se estivermos sincronizados
+            Object.assign(players[myId], {
+                score: p.score,
+                bombs: p.bombs,
+                radius: p.radius,
+                isDead: p.isDead,
+                maxDist: p.maxDist
+            });
+        }
+    } else {
+        // Para outros jogadores, atualiza as coordenadas alvo para o LERP funcionar
+        if (!players[p.id]) {
+            p.rx = p.x; p.ry = p.y; // Inicializa a posição visual
+            players[p.id] = p;
+        } else {
+            Object.assign(players[p.id], p);
+        }
+    }
 });
 
 socket.on('enemiesUpdate', serverEnemies => {

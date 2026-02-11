@@ -170,19 +170,29 @@ function draw() {
     // Desenha os Jogadores
     Object.values(players).forEach(p => {
         if (p.isDead) return;
+        
+        // Inicializa as posições visuais se não existirem
+        if (p.rx === undefined) { p.rx = p.x; p.ry = p.y; }
+        
+        // LERP: Seu jogador é quase instantâneo, os outros são suaves
+        const speed = (p.id === myId) ? 0.6 : 0.15;
+        p.rx = lerp(p.rx, p.x, speed);
+        p.ry = lerp(p.ry, p.y, speed);
+
+        // O cálculo do sX e sY deve usar o p.rx e p.ry
         const sX = centerX + (p.rx - camX) * TILE_SIZE - TILE_SIZE/2;
         const sY = centerY + (p.ry - camY) * TILE_SIZE - TILE_SIZE/2;
-        ctx.globalAlpha = (p.ghostUntil && now < p.ghostUntil) ? 0.5 : 1.0;
-        ctx.fillStyle = p.color; ctx.fillRect(sX+10, sY+10, 30, 30); 
+        
+        // Código de desenho do jogador
+        ctx.globalAlpha = (p.ghostUntil && Date.now() < p.ghostUntil) ? 0.5 : 1.0;
+        ctx.fillStyle = p.color; 
+        ctx.fillRect(sX+10, sY+10, 30, 30); 
         ctx.globalAlpha = 1.0;
-        ctx.textAlign = "center"; ctx.font = "11px Consolas";
-        ctx.fillStyle = C.blue; ctx.fillText(`[${p.x}, ${p.y}]`, sX+25, sY-15); 
-        ctx.fillStyle = C.white; ctx.fillText(`<${p.name}>`, sX+25, sY-3); 
-        if (p.chatText && Date.now() - p.chatTime < 4000) {
-            ctx.fillStyle = "#252526"; ctx.fillRect(sX - 60, sY - 45, 170, 25);
-            ctx.strokeStyle = "#444"; ctx.strokeRect(sX - 60, sY - 45, 170, 25);
-            ctx.fillStyle = C.orange; ctx.fillText(`"${p.chatText}"`, sX + 25, sY - 28);
-        }
+        
+        ctx.textAlign = "center"; 
+        ctx.font = "11px Consolas";
+        ctx.fillStyle = C.blue; 
+        ctx.fillText(`[${p.x}, ${p.y}]`, sX+25, sY-15);
     });
 
     explosions = explosions.filter(ex => Date.now() - ex.time < 1000); 

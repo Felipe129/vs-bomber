@@ -1,58 +1,63 @@
 // public/input.js
 
-window.addEventListener('keydown', e => {
-    // Se o jogador não estiver conectado ou não existir, ignora as teclas
-    if (!joined || !myId || !players[myId]) return;
-    
-    // --- CONTROLE DO CHAT ---
+document.addEventListener('keydown', e => {
+    // IGNORA INPUTS SE ESTIVER DIGITANDO NO CHAT
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+        if (e.key === 'Enter') {
+            if (document.activeElement.value.trim() !== '') {
+                socket.emit('chatMessage', document.activeElement.value);
+                document.activeElement.value = '';
+            }
+            document.activeElement.blur();
+        }
+        return;
+    }
+
     if (e.key === 'Enter') {
         e.preventDefault();
-        const chatContainer = document.getElementById('chat-input-line');
-        const chatInput = document.getElementById('chat-input');
-        
-        if (!chatting) {
-            chatting = true; 
-            chatContainer.style.display = 'flex'; 
-            chatInput.focus();
-        } else {
-            const val = chatInput.value;
-            if (val) socket.emit('chatMessage', val);
-            chatInput.value = ''; 
-            chatting = false; 
-            chatContainer.style.display = 'none'; 
-            canvas.focus();
-        }
+        const chatInput = document.querySelector('input[type="text"]') || document.getElementById('chatInput');
+        if (chatInput) chatInput.focus();
         return;
     }
-    
-    // Se estiver com o chat aberto, bloqueia o movimento e as bombas
-    if (chatting) return;
-    
+
+    if (typeof myId === 'undefined' || !players[myId] || players[myId].isDead) return;
+
+    // COLOCAR BOMBA
+    if (e.key === ' ' || e.key === 'Control') {
+        e.preventDefault();
+        socket.emit('placeBomb', { x: players[myId].x, y: players[myId].y });
+    }
+
+    // CONTROLE DE MOVIMENTO (PREDIÇÃO LOCAL)
     const now = Date.now();
-    
-    // --- COLOCAR BOMBA (Barra de Espaço) ---
-    if (e.key === ' ') {
-        if (now - lastBomb > 200) { 
-            socket.emit('placeBomb', { x: players[myId].x, y: players[myId].y }); 
-            lastBomb = now; 
-        }
-        return;
-    }
-    
-    // --- MOVIMENTAÇÃO (Setinhas) ---
-    const currentDelay = players[myId].moveDelay || 150;
-    if (now - lastStep < currentDelay) return;
-    
-    let nX = players[myId].x, nY = players[myId].y;
-    
-    if (e.key === 'ArrowUp') nY--; 
-    else if (e.key === 'ArrowDown') nY++;
-    else if (e.key === 'ArrowLeft') nX--; 
-    else if (e.key === 'ArrowRight') nX++;
-    
-    // Se a posição mudou, envia para o servidor
-    if (nX !== players[myId].x || nY !== players[myId].y) { 
-        lastStep = now; 
-        socket.emit('move', { x: nX, y: nY }); 
+    if (now - lastStep < 150) return; 
+
+    let nX = players[myId].x;
+    let nY = players[myId].y;
+
+    if (e.key === 'ArrowUp') nY--;
+    if (e.key === 'ArrowDown') nY++;
+    if (e.key === 'ArrowLeft') nX--;
+    if (e.key === 'ArrowRight') nX++;
+
+    if (nX === players[myId].x && nY === players[myId].y) return;
+
+    // Verifica se o caminho está livre usando a função do render.js
+    const isFree = typeof getTileAt === 'function' && getTileAt(nX, nY) === 0;
+    const hasBomb = typeof activeBombs !== 'undefined' && Array.from(activeBombs.values()).some(b => b.x === nX && b.y === nY);
+
+    if (isFree && !hasBomb) {
+        lastStep = now;
+        
+        // Predição: Move instantaneamente na tela do cliente
+        players[myId].x = nX;
+        players[myId].y = nY;
+        players[myId].rx = nX; 
+        players[myId].ry = nY;
+
+        if (typeof sfx !== 'undefined' && sfx.move) sfx.move();
+
+        // Envia ao servidor
+        socket.emit('move', { x: nX, y: nY });
     }
 });
