@@ -6,7 +6,23 @@ const C = {
     text: '#cccccc', blue: '#569cd6', green: '#6a9955', orange: '#ce9178', purple: '#c586c0', red: '#f14c4c', yellow: '#dcdcaa', white: '#ffffff'
 };
 
-const lerp = (start, end, amt) => (1 - amt) * start + amt * end;
+// Time-based lerp for smoother, frame-rate independent movement
+const lerp = (start, end, amt) => start + (end - start) * Math.min(amt, 1);
+
+// Global animation timer for frame delta
+let lastFrameTime = performance.now();
+
+// Velocity-based smoothing for more natural movement
+function damp(current, target, velocity, smoothTime, deltaTime) {
+    const omega = 2 / smoothTime;
+    const x = omega * deltaTime;
+    const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+    let change = current - target;
+    const temp = (velocity.value + omega * change) * deltaTime;
+    velocity.value = (velocity.value - omega * temp) * exp;
+    let result = target + (change + temp) * exp;
+    return result;
+}
 
 function getTileAt(gx, gy) {
     if (destroyedBlocks.has(`${gx},${gy}`)) return 0;
@@ -49,8 +65,9 @@ function draw() {
     
     if (!joined || !players[myId]) return requestAnimationFrame(draw);
     
-    const now = Date.now();
-    const lerpSpeed = 0.2; 
+    // Use a single 'now' for both animation and game logic
+    const now = performance.now();
+    const lerpSpeed = 0.2; // (legacy, can be removed if not used elsewhere)
 
     // Suaviza a movimentação visual (Interpolação)
     Object.values(players).forEach(p => {
@@ -87,11 +104,12 @@ function draw() {
     const leftBound = centerX - visibleWidth / 2;
     const rightBound = centerX + visibleWidth / 2;
     const topBound = centerY - visibleHeight / 2;
+    const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.05); // Clamp to 50ms max for stability
+    lastFrameTime = now;
     const bottomBound = centerY + visibleHeight / 2;
 
     const offsetX = (centerX - camX * TILE_SIZE);
     const offsetY = (centerY - camY * TILE_SIZE);
-    
     const gridStartX = leftBound - ((leftBound - offsetX) % TILE_SIZE) - TILE_SIZE;
     const gridStartY = topBound - ((topBound - offsetY) % TILE_SIZE) - TILE_SIZE;
 

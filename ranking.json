@@ -1,11 +1,20 @@
 [
   {
     "name": "Felipe",
-    "score": 0,
+    "score": 30,
     "color": "hsl(354.04965455991635, 80%, 60%)",
-    "maxDist": 13,
+    "maxDist": 14,
+    "kills": 0,
+    "enemyKills": 3,
+    "deaths": 3
+  },
+  {
+    "name": "test",
+    "score": 0,
+    "color": "hsl(34.11578303742254, 80%, 60%)",
+    "maxDist": 0,
     "kills": 0,
     "enemyKills": 0,
-    "deaths": 1
+    "deaths": 0
   }
 ]
