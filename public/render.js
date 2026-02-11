@@ -102,6 +102,23 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(leftBound, i); ctx.lineTo(rightBound, i); ctx.stroke(); 
     }
 
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.font = "bold 14px Consolas";
+    ctx.fillStyle = "#3c3c3c"; // Cor cinza escuro para parecer "gravado" no chão
+    
+    // Calcula a posição na tela baseada na câmera
+    const spawnX = centerX - camX * TILE_SIZE;
+    const spawnY = centerY - camY * TILE_SIZE;
+
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.font = "bold 14px Consolas";
+    ctx.fillStyle = "#3c3c3c"; // Cinza escuro discreto
+    
+
+    
+
     // Desenha o mapa (Paredes, Blocos, Itens e Bombas)
     for (let r = -viewRadiusY; r <= viewRadiusY; r++) {
         for (let c = -viewRadiusX; c <= viewRadiusX; c++) {
@@ -143,6 +160,33 @@ function draw() {
                 ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 12px Consolas"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("<fire>", sX+25, sY+25);
             }
         }
+    }
+    {
+        ctx.save();
+        ctx.textAlign = "center";
+        // Fonte maior e cor mais clara para destacar no chão escuro
+        ctx.font = "bold 16px Consolas";
+        ctx.fillStyle = "#999999"; 
+        
+        // Calcula o PONTO CENTRAL EXATO da coordenada mundo (0,0) na tela
+        const spawnCenterX = centerX + (0 - camX) * TILE_SIZE;
+        const spawnCenterY = centerY + (0 - camY) * TILE_SIZE;
+
+        // Desenha apenas se a área de spawn estiver visível na tela
+        // (Aumentei a margem de segurança para 300px para garantir)
+        if (spawnCenterX > -300 && spawnCenterX < canvas.width + 300 &&
+            spawnCenterY > -300 && spawnCenterY < canvas.height + 300) {
+            
+            // Usa espaçamento fixo em pixels para centralizar perfeitamente
+            ctx.fillText("// SETAS para Mover", spawnCenterX, spawnCenterY - 50);
+            ctx.fillText("// ESPAÇO para Bomba", spawnCenterX, spawnCenterY - 25);
+            ctx.fillText("// ENTER para Chat", spawnCenterX, spawnCenterY);
+            
+            // Mensagem extra um pouco mais abaixo com estilo diferente
+            ctx.font = "italic 14px Consolas";
+            ctx.fillText("console.log('Have Fun!');", spawnCenterX, spawnCenterY + 60);
+        }
+        ctx.restore();
     }
 
     // Desenha os Inimigos
