@@ -52,8 +52,6 @@ document.addEventListener('keydown', e => {
         // Predição: Move instantaneamente na tela do cliente
         players[myId].x = nX;
         players[myId].y = nY;
-        players[myId].rx = nX; 
-        players[myId].ry = nY;
 
         if (typeof sfx !== 'undefined' && sfx.move) sfx.move();
 

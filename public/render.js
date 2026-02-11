@@ -175,7 +175,7 @@ function draw() {
         if (p.rx === undefined) { p.rx = p.x; p.ry = p.y; }
         
         // LERP: Seu jogador é quase instantâneo, os outros são suaves
-        const speed = (p.id === myId) ? 0.6 : 0.15;
+        const speed = (p.id === myId) ? 0.2 : 0.15;
         p.rx = lerp(p.rx, p.x, speed);
         p.ry = lerp(p.ry, p.y, speed);
 
