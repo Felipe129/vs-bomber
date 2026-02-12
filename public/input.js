@@ -30,15 +30,31 @@ document.addEventListener('keydown', e => {
 
     // CONTROLE DE MOVIMENTO (PREDIÇÃO LOCAL)
     const now = Date.now();
-    if (now - lastStep < 150) return; 
+    
+    // Respeita a velocidade atual do player (incluindo debuff de lentidão)
+    let currentDelay = players[myId].moveDelay || 150;
+    if (players[myId].slowUntil && now < players[myId].slowUntil) currentDelay = 300;
+    
+    if (now - lastStep < currentDelay) return; 
 
     let nX = players[myId].x;
     let nY = players[myId].y;
 
-    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { nY--; players[myId].facing = 'up'; }
-    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') { nY++; players[myId].facing = 'down'; }
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { nX--; players[myId].facing = 'left'; }
-    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { nX++; players[myId].facing = 'right'; }
+    let up = e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W';
+    let down = e.key === 'ArrowDown' || e.key === 's' || e.key === 'S';
+    let left = e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A';
+    let right = e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D';
+
+    // Lógica de Inversão de Controles
+    if (players[myId].invertUntil && now < players[myId].invertUntil) {
+        const tUp = up; up = down; down = tUp;
+        const tLeft = left; left = right; right = tLeft;
+    }
+
+    if (up) { nY--; players[myId].facing = 'up'; }
+    if (down) { nY++; players[myId].facing = 'down'; }
+    if (left) { nX--; players[myId].facing = 'left'; }
+    if (right) { nX++; players[myId].facing = 'right'; }
 
     if (nX === players[myId].x && nY === players[myId].y) return;
 

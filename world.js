@@ -1,9 +1,21 @@
 // world.js
 
+const MAP_RADIUS = 187; // 375 / 2
+const PLAYABLE_RADIUS = 182; // 5 camadas de borda
+
+let mapSeed = Math.random() * 10000;
+function setSeed(s) { mapSeed = s; }
+function getSeed() { return mapSeed; }
+
 // Função que gera o mapa proceduralmente
 function getTileAt(gx, gy, destroyedBlocks) {
     gx = Math.round(gx); 
     gy = Math.round(gy);
+    
+    // Limites do Mapa (375x375 com borda de 5 blocos)
+    if (Math.abs(gx) > MAP_RADIUS || Math.abs(gy) > MAP_RADIUS) return 0; // Void
+    if (Math.abs(gx) > PLAYABLE_RADIUS || Math.abs(gy) > PLAYABLE_RADIUS) return 1; // Borda Indestrutível
+
     const key = `${gx},${gy}`;
     
     // Se o bloco foi quebrado, é caminho livre (0)
@@ -16,7 +28,7 @@ function getTileAt(gx, gy, destroyedBlocks) {
     if (gx % 2 === 0 && gy % 2 === 0) return 1;
     
     // Ruído determinístico para espalhar os blocos de madeira
-    const val = Math.abs(Math.sin(gx * 12.9898 + gy * 78.233) * 43758.5453) % 1;
+    const val = Math.abs(Math.sin((gx + mapSeed) * 12.9898 + (gy + mapSeed) * 78.233) * 43758.5453) % 1;
     const dist = Math.max(Math.abs(gx), Math.abs(gy));
     
     // Mais blocos longe do centro, menos blocos perto do spawn
@@ -31,6 +43,9 @@ function findSafeTile(sx, sy, destroyedBlocks, activeBombs) {
             for (let dy = -radius; dy <= radius; dy++) {
                 let tx = sx + dx, ty = sy + dy;
                 
+                // Garante que não spawne dentro da parede da borda
+                if (Math.abs(tx) > PLAYABLE_RADIUS || Math.abs(ty) > PLAYABLE_RADIUS) continue;
+
                 // Verifica se é espaço livre e se não tem bomba em cima
                 if (getTileAt(tx, ty, destroyedBlocks) === 0 && !Array.from(activeBombs.values()).some(b => b.x === tx && b.y === ty)) {
                     let freeNeighbors = 0;
@@ -49,5 +64,9 @@ function findSafeTile(sx, sy, destroyedBlocks, activeBombs) {
 
 module.exports = {
     getTileAt,
-    findSafeTile
+    findSafeTile,
+    setSeed,
+    getSeed,
+    MAP_RADIUS,
+    PLAYABLE_RADIUS
 };

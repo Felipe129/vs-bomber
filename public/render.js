@@ -33,11 +33,18 @@ function damp(current, target, velocity, smoothTime, deltaTime) {
     return result;
 }
 
+const MAP_RADIUS = 187;
+const PLAYABLE_RADIUS = 182;
+
 function getTileAt(gx, gy) {
+    if (Math.abs(gx) > MAP_RADIUS || Math.abs(gy) > MAP_RADIUS) return 0;
+    if (Math.abs(gx) > PLAYABLE_RADIUS || Math.abs(gy) > PLAYABLE_RADIUS) return 1;
+
     if (destroyedBlocks.has(`${gx},${gy}`)) return 0;
     if (Math.abs(gx) <= 5 && Math.abs(gy) <= 5) return 0; 
     if (gx % 2 === 0 && gy % 2 === 0) return 1;
-    const val = Math.abs(Math.sin(gx * 12.9898 + gy * 78.233) * 43758.5453) % 1;
+    const seed = window.mapSeed || 0;
+    const val = Math.abs(Math.sin((gx + seed) * 12.9898 + (gy + seed) * 78.233) * 43758.5453) % 1;
     const dist = Math.max(Math.abs(gx), Math.abs(gy));
     const threshold = dist > 10 ? 0.55 : 0.82;
     return val > threshold ? 2 : 0;
@@ -140,8 +147,9 @@ function draw() {
     const visibleWidth = canvas.width / zoom;
     const visibleHeight = canvas.height / zoom;
 
-    const viewRadiusX = Math.ceil(visibleWidth / TILE_SIZE / 2) + 2;
-    const viewRadiusY = Math.ceil(visibleHeight / TILE_SIZE / 2) + 2;
+    // OTIMIZAÇÃO: Limita a renderização a 20 blocos (solicitado) e calcula raio de visão
+    const viewRadiusX = Math.min(20, Math.ceil(visibleWidth / TILE_SIZE / 2) + 1);
+    const viewRadiusY = Math.min(20, Math.ceil(visibleHeight / TILE_SIZE / 2) + 1);
 
     // --- DESENHA O GRID DINÂMICO ---
     ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
@@ -178,16 +186,7 @@ function draw() {
     ctx.font = "bold 14px Consolas";
     ctx.fillStyle = "#3c3c3c"; // Cinza escuro discreto
     
-
-    // Otimização: Cria mapas de lookup para bombas e explosões para evitar N^2 loops
-    const bombMap = new Map();
-    currentBombs.forEach(b => bombMap.set(`${b.x},${b.y}`, b));
-
-    const explosionMap = new Map();
-    explosions.forEach(ex => explosionMap.set(`${ex.x},${ex.y}`, ex));
-    
-
-    // Desenha o mapa (Paredes, Blocos, Itens e Bombas)
+    // 1. CAMADA DO MAPA (Paredes e Blocos)
     for (let r = -viewRadiusY; r <= viewRadiusY; r++) {
         for (let c = -viewRadiusX; c <= viewRadiusX; c++) {
             const wX = Math.round(camX) + c, wY = Math.round(camY) + r;
@@ -217,33 +216,61 @@ function draw() {
 
                 if(isInf) { ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.strokeRect(sX+2, sY+2, TILE_SIZE-4, TILE_SIZE-4); }
             }
-
-            if (powerUps.has(key)) {
-                const item = powerUps.get(key); 
-                let color = C.white; let text = '?';
-                if (item.type === 'bomb') { color = C.blue; text = 'bomb++'; } else if (item.type === 'fire') { color = C.orange; text = 'fire++'; } else if (item.type === 'kick') { color = C.yellow; text = 'kick()'; } else if (item.type === 'ghost') { color = C.purple; text = 'ghost'; } else if (item.type === 'speed') { color = C.green; text = 'speed++'; } else if (item.type === 'pierce') { color = C.red; text = 'pierce'; } 
-                ctx.fillStyle = '#252526'; ctx.fillRect(sX+5, sY+5, 40, 40); 
-                ctx.strokeStyle = color; ctx.strokeRect(sX+5, sY+5, 40, 40); 
-                ctx.fillStyle = color; ctx.font = "bold 10px Consolas"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, sX+25, sY+25);
-            }
-
-            const bomb = bombMap.get(key);
-            if (bomb) { 
-                const color = bomb.isPierce ? C.purple : C.blue;
-                const tag = bomb.isPierce ? "<pierce>" : "<bomb>";
-                ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sX+25, sY+25, 18, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 10px Consolas"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(tag, sX+25, sY+25);
-            }
-            
-            const exp = explosionMap.get(key);
-            if (exp) {
-                const color = exp.isPierce ? C.purple : C.orange; 
-                ctx.fillStyle = color; ctx.globalAlpha = 0.8; ctx.fillRect(sX, sY, TILE_SIZE, TILE_SIZE);
-                ctx.globalAlpha = 1.0; 
-                ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 12px Consolas"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("<fire>", sX+25, sY+25);
-            }
         }
     }
+
+    // Helper para Culling (Verificar se está na tela)
+    const isVisible = (x, y) => Math.abs(x - camX) <= viewRadiusX && Math.abs(y - camY) <= viewRadiusY;
+
+    // 2. CAMADA DE ITENS (PowerUps) - Loop direto no Map (Muito mais rápido que checar tile por tile)
+    powerUps.forEach((item, key) => {
+        const [kx, ky] = key.split(',').map(Number);
+        if (!isVisible(kx, ky)) return;
+        const sX = centerX + (kx - camX) * TILE_SIZE - TILE_SIZE/2;
+        const sY = centerY + (ky - camY) * TILE_SIZE - TILE_SIZE/2;
+        let color = C.white; let text = '?';
+        if (item.type === 'bomb') { color = C.blue; text = 'bomb++'; } else if (item.type === 'fire') { color = C.orange; text = 'fire++'; } else if (item.type === 'kick') { color = C.yellow; text = 'kick()'; } else if (item.type === 'ghost') { color = C.purple; text = 'ghost'; } else if (item.type === 'speed') { color = C.green; text = 'speed++'; } else if (item.type === 'pierce') { color = C.red; text = 'pierce'; } 
+        else if (item.type === 'bomb_down') { color = '#d16969'; text = 'bomb--'; }
+        else if (item.type === 'fire_down') { color = '#d16969'; text = 'fire--'; }
+        else if (item.type === 'speed_down') { color = '#d16969'; text = 'speed--'; }
+        else if (item.type.startsWith('debuff_')) {
+            // Hexagono Vermelho para Debuffs
+            drawHexagon(ctx, sX+25, sY+25, 18, '#f14c4c');
+            ctx.fillStyle = '#ffffff';
+            let dText = '!';
+            if (item.type === 'debuff_slow') dText = 'SLOW';
+            if (item.type === 'debuff_invert') dText = 'INV';
+            if (item.type === 'debuff_autobomb') dText = 'AUTO';
+            ctx.font = "bold 9px Consolas"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(dText, sX+25, sY+25);
+            return; // Pula o desenho padrão do quadrado
+        }
+        ctx.fillStyle = '#252526'; ctx.fillRect(sX+5, sY+5, 40, 40); 
+        ctx.strokeStyle = color; ctx.strokeRect(sX+5, sY+5, 40, 40); 
+        ctx.fillStyle = color; ctx.font = "bold 10px Consolas"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, sX+25, sY+25);
+    });
+
+    // 3. CAMADA DE BOMBAS
+    currentBombs.forEach(bomb => {
+        if (!isVisible(bomb.x, bomb.y)) return;
+        const sX = centerX + (bomb.x - camX) * TILE_SIZE - TILE_SIZE/2;
+        const sY = centerY + (bomb.y - camY) * TILE_SIZE - TILE_SIZE/2;
+        const color = bomb.isPierce ? C.purple : C.blue;
+        const tag = bomb.isPierce ? "<pierce>" : "<bomb>";
+        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sX+25, sY+25, 18, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 10px Consolas"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(tag, sX+25, sY+25);
+    });
+
+    // 4. CAMADA DE EXPLOSÕES
+    explosions.forEach(exp => {
+        if (!isVisible(exp.x, exp.y)) return;
+        const sX = centerX + (exp.x - camX) * TILE_SIZE - TILE_SIZE/2;
+        const sY = centerY + (exp.y - camY) * TILE_SIZE - TILE_SIZE/2;
+        const color = exp.isPierce ? C.purple : C.orange; 
+        ctx.fillStyle = color; ctx.globalAlpha = 0.8; ctx.fillRect(sX, sY, TILE_SIZE, TILE_SIZE);
+        ctx.globalAlpha = 1.0; 
+        ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 12px Consolas"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("<fire>", sX+25, sY+25);
+    });
+
     {
         ctx.save();
         ctx.textAlign = "center";
@@ -286,6 +313,7 @@ function draw() {
 
     // Desenha os Inimigos
     Object.values(enemies).forEach(en => {
+        if (!isVisible(en.rx, en.ry)) return; // Culling
         const sX = centerX + (en.rx - camX) * TILE_SIZE - TILE_SIZE/2;
         const sY = centerY + (en.ry - camY) * TILE_SIZE - TILE_SIZE/2;
         let color = C.green; let text = "<enemy>";
@@ -367,6 +395,7 @@ function draw() {
     // Desenha os Jogadores
     Object.values(players).forEach(p => {
         if (p.isDead) return;
+        if (!isVisible(p.rx, p.ry)) return; // Culling
         
         // O cálculo do sX e sY deve usar o p.rx e p.ry (posições interpoladas)
         const sX = centerX + (p.rx - camX) * TILE_SIZE - TILE_SIZE/2;
@@ -410,6 +439,7 @@ function draw() {
     // --- FLOATING TEXTS (SCORE) ---
     floatingTexts = floatingTexts.filter(t => t.life > 0);
     floatingTexts.forEach(t => {
+        if (!isVisible(t.x, t.y)) return; // Culling
         t.life -= deltaTime;
         t.offset += deltaTime * 30; // Move up speed
         
@@ -428,6 +458,20 @@ function draw() {
     
     ctx.restore();
     requestAnimationFrame(draw);
+}
+
+function drawHexagon(ctx, x, y, r, color) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+        const angle = 2 * Math.PI / 6 * i;
+        const hx = x + r * Math.cos(angle);
+        const hy = y + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(hx, hy);
+        else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#252526'; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
 }
 
 // Inicia o loop gráfico

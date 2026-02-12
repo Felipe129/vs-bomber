@@ -47,12 +47,23 @@ function detonateBomb(bombId, sourceId, ctx) {
                     // Sorteio de PowerUp
                     const rnd = Math.random(); 
                     let type = 'bomb';
-                    if (rnd < 0.30) type = 'bomb'; 
-                    else if (rnd < 0.60) type = 'fire'; 
-                    else if (rnd < 0.85) type = 'speed'; 
-                    else if (rnd < 0.96) type = 'kick'; 
-                    else if (rnd < 0.98) type = 'ghost'; 
-                    else type = 'pierce'; 
+                    if (rnd < 0.25) type = 'bomb'; 
+                    else if (rnd < 0.50) type = 'fire'; 
+                    else if (rnd < 0.70) type = 'speed'; 
+                    else if (rnd < 0.78) type = 'kick'; 
+                    else if (rnd < 0.80) type = 'ghost'; 
+                    else if (rnd < 0.82) type = 'pierce';
+                    // PowerDowns (Permanentes)
+                    else if (rnd < 0.88) type = 'bomb_down';
+                    else if (rnd < 0.94) type = 'fire_down';
+                    else if (rnd < 1.00) {
+                        // Debuffs Temporários ou Speed Down
+                        const sub = Math.random();
+                        if (sub < 0.4) type = 'speed_down';
+                        else if (sub < 0.6) type = 'debuff_slow';
+                        else if (sub < 0.8) type = 'debuff_invert';
+                        else type = 'debuff_autobomb';
+                    }
                     
                     powerUps.set(key, { type, spawnTime: Date.now() });
                 }

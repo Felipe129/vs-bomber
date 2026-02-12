@@ -19,7 +19,7 @@ let powerUps = new Map();
 let activeBombs = new Map();
 let activeFlames = []; 
 
-const ROUND_DURATION = 5 * 60 * 1000;
+const ROUND_DURATION = 30 * 60 * 1000;
 let roundEndTime = Date.now() + ROUND_DURATION;
 
 function broadcastChat(msgData) {
@@ -44,13 +44,18 @@ function resetMapRound() {
     powerUps.clear();
     activeBombs.clear();
     activeFlames.length = 0; 
+    
+    // Gera uma nova semente para o mapa mudar
+    const newSeed = Math.random() * 10000;
+    world.setSeed(newSeed);
+
     for (const key in enemies) delete enemies[key];
 
     Object.values(players).forEach(p => { p.x = 0; p.y = 0; p.lastMoveTime = Date.now(); });
     for (let i = 0; i < 240; i++) spawnEnemy();
     roundEndTime = Date.now() + ROUND_DURATION;
     
-    io.emit('roundReset', { players, enemies, roundEndTime, destroyedBlocks: [] });
+    io.emit('roundReset', { players, enemies, roundEndTime, destroyedBlocks: [], mapSeed: newSeed });
     broadcastChat({ id: 'SYSTEM', text: `[SYSTEM] Garbage Collection executed. Map reset.`, system: true });
     io.emit('notification', { text: "GC: Map Memory Cleared. Resetting...", type: "warn" });
 }
@@ -96,8 +101,8 @@ function spawnEnemy(specificPos = null, isRaging = false, invincibleDuration = 0
     if (specificPos) { ex = specificPos.x; ey = specificPos.y; } 
     else {
         do {
-            ex = Math.floor(Math.random() * 240) - 120;
-            ey = Math.floor(Math.random() * 240) - 120;
+            ex = Math.floor(Math.random() * 360) - 180;
+            ey = Math.floor(Math.random() * 360) - 180;
             attempts++;
             if (forceOffScreen && attempts < 50 && Object.values(players).some(p => Math.abs(p.x - ex) < 18 && Math.abs(p.y - ey) < 18)) continue;
             if (getTileAt(ex, ey) === 0 && (Math.abs(ex) > 5 || Math.abs(ey) > 5)) break;
@@ -141,6 +146,24 @@ setInterval(() => {
     
     Object.values(players).forEach(p => {
         if (p.isDead) return;
+
+        // --- LÓGICA DE AUTO-BOMBA (DEBUFF) ---
+        if (p.autoBombUntil && now < p.autoBombUntil) {
+            if (now - (p.lastAutoBomb || 0) > 1500) {
+                p.lastAutoBomb = now;
+                // Tenta colocar bomba automaticamente
+                if (Array.from(activeBombs.values()).filter(b => b.owner === p.id).length < p.bombs) {
+                    const bid = "ab_" + Date.now() + p.id;
+                    const isPierce = p.pierceUntil && Date.now() < p.pierceUntil;
+                    activeBombs.set(bid, { x: p.x, y: p.y, id: bid, radius: p.radius, owner: p.id, sliding: false, isPierce: isPierce });
+                    io.emit('bombUpdate', Array.from(activeBombs.values()));
+                    io.emit('sfx', 'place');
+                    setTimeout(() => combat.detonateBomb(bid, p.id, getGameContext()), 2000);
+                }
+            }
+        } else { p.autoBombUntil = null; }
+        // -------------------------------------
+
         if (p.ghostUntil && now > p.ghostUntil) {
             p.ghostUntil = null;
             if (getTileAt(p.x, p.y) === 2) {
@@ -151,6 +174,9 @@ setInterval(() => {
         }
         if (p.pierceUntil && now > p.pierceUntil) p.pierceUntil = null;
         if (p.kickUntil && now > p.kickUntil) p.kickUntil = null;
+
+        if (p.slowUntil && now > p.slowUntil) p.slowUntil = null;
+        if (p.invertUntil && now > p.invertUntil) p.invertUntil = null;
 
         Object.values(enemies).forEach(en => { if (en.x === p.x && en.y === p.y) resetPlayer(p, `eliminated by Glitch <${en.type}>`, 'error'); });
         
@@ -238,6 +264,7 @@ function resetPlayer(p, causeMsg, notifType = 'error') {
     p.score = 0; p.x = 0; p.y = 0; p.bombs = 1; p.radius = 1; p.kickUntil = null; p.moveDelay = 150; 
     p.pierceUntil = null; p.ghostUntil = null; p.maxDist = 0; p.level = 0; p.sessionMaxLevel = 0;
     p.sessionKills = 0; p.sessionEnemyKills = 0; p.spawnExitTime = null;
+    p.slowUntil = null; p.invertUntil = null; p.autoBombUntil = null; p.lastAutoBomb = 0;
     p.sessionPowerups = { bomb: 0, fire: 0, speed: 0, kick: 0, ghost: 0, pierce: 0 };
     p.isDead = true; 
     
@@ -265,6 +292,7 @@ io.on('connection', (socket) => {
             id: socket.id, name: name || "User", x: 0, y: 0, 
             score: 0, // A pontuação da sessão começa em 0
             bombs: 1, radius: 1, kickUntil: null, moveDelay: 150, pierceUntil: null, ghostUntil: null, lastMoveTime: 0,
+            slowUntil: null, invertUntil: null, autoBombUntil: null, lastAutoBomb: 0,
             color: playerColor, // <--- Aplica a cor persistente aqui
             sessionKills: 0,
             sessionEnemyKills: 0,
@@ -279,7 +307,7 @@ io.on('connection', (socket) => {
             notified30: false, notified60: false, isDead: false 
         };
         
-        socket.emit('init', { id: socket.id, players, enemies, destroyedBlocks: Array.from(destroyedBlocks), activeBombs: Array.from(activeBombs.values()), powerUps: Array.from(powerUps), roundEndTime });
+        socket.emit('init', { id: socket.id, players, enemies, destroyedBlocks: Array.from(destroyedBlocks), activeBombs: Array.from(activeBombs.values()), powerUps: Array.from(powerUps), roundEndTime, mapSeed: world.getSeed() });
         socket.emit('chatHistory', storage.getChatHistory());
         
         broadcastChat({ id: 'SYSTEM', text: `[NET] ${players[socket.id].name} connected.`, system: true });
@@ -292,7 +320,10 @@ io.on('connection', (socket) => {
 
     socket.on('move', (data) => {
         const p = players[socket.id]; const now = Date.now();
-        if (p && !p.isDead && now - p.lastMoveTime > p.moveDelay) {
+        
+        // Aplica lentidão se o debuff estiver ativo (300ms delay = muito lento)
+        const effectiveDelay = (p.slowUntil && now < p.slowUntil) ? 300 : p.moveDelay;
+        if (p && !p.isDead && now - p.lastMoveTime > effectiveDelay) {
             const bombAt = Array.from(activeBombs.values()).find(b => b.x === data.x && b.y === data.y);
             if (bombAt && p.kickUntil && now < p.kickUntil && !bombAt.sliding) {
                 const vx = data.x - p.x, vy = data.y - p.y;
@@ -322,8 +353,8 @@ io.on('connection', (socket) => {
                 }
                 // --- FIM CÁLCULO DE NÍVEL ---
                 
-                if (dist > 30 && !p.notified30) { p.notified30 = true; socket.emit('notification', { text: "INFO: Você já está quase na metade do caminho.", type: "info" }); }
-                if (dist > 60 && !p.notified60) { p.notified60 = true; socket.emit('notification', { text: "WARN: Você está chegando na borda...", type: "warn" }); }
+                if (dist > 90 && !p.notified30) { p.notified30 = true; socket.emit('notification', { text: "INFO: Você já está quase na metade do caminho.", type: "info" }); }
+                if (dist > 160 && !p.notified60) { p.notified60 = true; socket.emit('notification', { text: "WARN: Você está chegando na borda...", type: "warn" }); }
                 
                 const key = `${p.x},${p.y}`;
                 if (powerUps.has(key)) {
@@ -341,6 +372,13 @@ io.on('connection', (socket) => {
                     else if (item.type === 'kick') { p.kickUntil = now + 10000; powerMsg = "Chutar Bombas"; } 
                     else if (item.type === 'ghost') { p.ghostUntil = now + 10000; powerMsg = "Modo Ghost"; } 
                     else if (item.type === 'pierce') { p.pierceUntil = now + 10000; powerMsg = "Bomba Perfurante"; }
+                    // PowerDowns
+                    else if (item.type === 'bomb_down') { p.bombs = Math.max(1, p.bombs - 1); powerMsg = "Menos bombas..."; }
+                    else if (item.type === 'fire_down') { p.radius = Math.max(1, p.radius - 1); powerMsg = "Raio reduzido..."; }
+                    else if (item.type === 'speed_down') { p.moveDelay = Math.min(300, p.moveDelay + 20); powerMsg = "Velocidade reduzida..."; } // Max 300ms (50% speed)
+                    else if (item.type === 'debuff_slow') { p.slowUntil = now + 7000; powerMsg = "Lentidão (7s)"; }
+                    else if (item.type === 'debuff_invert') { p.invertUntil = now + 7000; powerMsg = "Controles Invertidos (7s)"; }
+                    else if (item.type === 'debuff_autobomb') { p.autoBombUntil = now + 6000; powerMsg = "Auto-Bomba (6s)"; }
                     
                     p.score += 3;
                     io.emit('floatingText', { x: p.x, y: p.y, text: "+3" });
@@ -352,7 +390,7 @@ io.on('connection', (socket) => {
                     // LOG: Jogador pegou PowerUp (Enviado a TODOS os clientes)
                     io.emit('activityLog', { name: p.name, color: p.color, action: `carregou modulo:<br><span style="color:#cccccc">${powerMsg}</span>`, type: 'powerup' });
 
-                    if (['kick', 'ghost', 'pierce'].includes(item.type)) {
+                    if (['kick', 'ghost', 'pierce', 'debuff_slow', 'debuff_invert', 'debuff_autobomb'].includes(item.type)) {
                         socket.emit('timedNotification', { id: `buff_${item.type}`, title: 'Buff Temporário', text: powerMsg, duration: 10000 });
                     } else {
                         socket.emit('notification', { text: `PowerUp: ${powerMsg}`, type: "info" });

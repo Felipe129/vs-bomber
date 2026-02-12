@@ -172,6 +172,8 @@ window.showLevelUpPopup = function(level, color) {
 };
 
 socket.on('init', d => {
+    joined = true;
+    window.mapSeed = d.mapSeed || 0; // Recebe a semente do mapa
     myId = d.id; players = d.players; enemies = {};
     Object.values(d.enemies).forEach(en => { enemies[en.id] = { ...en, rx: en.x, ry: en.y }; });
     destroyedBlocks = new Set(d.destroyedBlocks); currentBombs = d.activeBombs;
@@ -181,6 +183,7 @@ socket.on('init', d => {
 });
 
 socket.on('roundReset', d => {
+    window.mapSeed = d.mapSeed || 0; // Atualiza a semente no reset
     players = d.players; enemies = {};
     Object.values(d.enemies).forEach(en => { enemies[en.id] = { ...en, rx: en.x, ry: en.y }; });
     destroyedBlocks = new Set(d.destroyedBlocks); roundEndTime = d.roundEndTime;
@@ -218,7 +221,11 @@ socket.on('playerMoved', p => {
                 bombs: p.bombs,
                 radius: p.radius,
                 isDead: p.isDead,
-                maxDist: p.maxDist
+                maxDist: p.maxDist,
+                moveDelay: p.moveDelay,
+                slowUntil: p.slowUntil,
+                invertUntil: p.invertUntil,
+                autoBombUntil: p.autoBombUntil
             });
         }
     } else {
@@ -234,13 +241,26 @@ socket.on('playerMoved', p => {
 
 socket.on('enemiesUpdate', serverEnemies => {
     const serverIds = new Set(Object.keys(serverEnemies));
+    
+    // OTIMIZAÇÃO: Armazena apenas inimigos dentro de um raio seguro (ex: 40 blocos)
+    // Isso evita processar e armazenar dados de inimigos muito distantes
+    const KEEP_RADIUS = 40;
+    
     Object.values(serverEnemies).forEach(sEn => {
-        if (!enemies[sEn.id]) { enemies[sEn.id] = { ...sEn, rx: sEn.x, ry: sEn.y }; } 
-        else {
-            const current = enemies[sEn.id];
-            current.x = sEn.x; current.y = sEn.y;
-            current.type = sEn.type; current.isBuffed = sEn.isBuffed; current.isRaging = sEn.isRaging;
-            current.invincibleUntil = sEn.invincibleUntil; if(sEn.state) current.state = sEn.state;
+        // Verifica distância se tivermos a posição do player
+        const inRange = myPos && Math.abs(sEn.x - myPos.x) <= KEEP_RADIUS && Math.abs(sEn.y - myPos.y) <= KEEP_RADIUS;
+        
+        if (inRange) {
+            if (!enemies[sEn.id]) { enemies[sEn.id] = { ...sEn, rx: sEn.x, ry: sEn.y }; } 
+            else {
+                const current = enemies[sEn.id];
+                current.x = sEn.x; current.y = sEn.y;
+                current.type = sEn.type; current.isBuffed = sEn.isBuffed; current.isRaging = sEn.isRaging;
+                current.invincibleUntil = sEn.invincibleUntil; if(sEn.state) current.state = sEn.state;
+            }
+        } else {
+            // Remove se saiu do raio de visão para liberar memória
+            if (enemies[sEn.id]) delete enemies[sEn.id];
         }
     });
     Object.keys(enemies).forEach(id => { if (!serverIds.has(id)) delete enemies[id]; });
@@ -313,6 +333,16 @@ socket.on('bombUpdate', b => currentBombs = b);
 
 socket.on('playerKilled', summary => { 
     sfx.gameOver(); 
+    
+    // Limpeza Geral do Client Side (Simula F5)
+    joined = false;
+    enemies = {};
+    explosions = [];
+    currentBombs = [];
+    destroyedBlocks = new Set();
+    powerUps = new Map();
+    floatingTexts = [];
+    players = {};
     
     // Causa da morte
     document.getElementById('death-msg').innerText = `Fatal Error: ${summary.cause}`;
