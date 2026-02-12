@@ -130,45 +130,15 @@ function createPersistentToast(id, title, msg, duration) {
 }
 
 window.showLevelUpPopup = function(level, color) {
-    const existing = document.getElementById('level-up-popup');
-    if (existing) {
-        if (existing.dataset.timeoutId) clearTimeout(existing.dataset.timeoutId);
-        existing.remove();
-    }
-
-    const popup = document.createElement('div');
-    popup.id = 'level-up-popup';
-    popup.innerText = `LVL ${level}`;
-
-    // Usa a cor do nível passada, ou um amarelo padrão como fallback.
-    const textColor = color || '#dcdcaa';
-
-    Object.assign(popup.style, {
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        padding: '10px 25px',
-        fontFamily: 'Consolas, monospace',
-        fontSize: '32px',
-        fontWeight: 'bold',
-        color: textColor,
-        backgroundColor: 'rgba(30, 30, 30, 0.85)',
-        border: `2px solid ${textColor}`,
-        borderRadius: '4px',
-        zIndex: '1001',
-        pointerEvents: 'none',
-        opacity: '1',
-        transition: 'opacity 0.5s ease-out'
+    // Adiciona texto flutuante seguindo o player
+    floatingTexts.push({
+        targetId: myId,
+        text: `LVL ${level}`,
+        life: 3.0, // Duração maior
+        offset: 0,
+        color: color || '#dcdcaa',
+        font: "bold 32px Consolas"
     });
-
-    document.body.appendChild(popup);
-
-    const timeoutId = setTimeout(() => {
-        popup.style.opacity = '0';
-        setTimeout(() => { if (popup.parentElement) popup.remove(); }, 500);
-    }, 1000);
-    popup.dataset.timeoutId = timeoutId;
 };
 
 socket.on('init', d => {
@@ -275,6 +245,17 @@ socket.on('chatHistory', (history) => {
 
 socket.on('chatMessage', d => {
     appendChatMsg(d);
+    // Adiciona balão de chat flutuante acima do jogador que enviou
+    if (d.id && players[d.id]) {
+        floatingTexts.push({
+            targetId: d.id,
+            text: `- "${d.text}"`,
+            life: 4.0,
+            offset: 0,
+            color: '#ffffff',
+            font: "14px Consolas"
+        });
+    }
 });
 
 function appendChatMsg(d) {

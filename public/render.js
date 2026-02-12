@@ -229,10 +229,11 @@ function draw() {
         const sX = centerX + (kx - camX) * TILE_SIZE - TILE_SIZE/2;
         const sY = centerY + (ky - camY) * TILE_SIZE - TILE_SIZE/2;
         let color = C.white; let text = '?';
+        let isPowerDown = false;
         if (item.type === 'bomb') { color = C.blue; text = 'bomb++'; } else if (item.type === 'fire') { color = C.orange; text = 'fire++'; } else if (item.type === 'kick') { color = C.yellow; text = 'kick()'; } else if (item.type === 'ghost') { color = C.purple; text = 'ghost'; } else if (item.type === 'speed') { color = C.green; text = 'speed++'; } else if (item.type === 'pierce') { color = C.red; text = 'pierce'; } 
-        else if (item.type === 'bomb_down') { color = '#d16969'; text = 'bomb--'; }
-        else if (item.type === 'fire_down') { color = '#d16969'; text = 'fire--'; }
-        else if (item.type === 'speed_down') { color = '#d16969'; text = 'speed--'; }
+        else if (item.type === 'bomb_down') { color = '#d16969'; text = 'bomb--'; isPowerDown = true; }
+        else if (item.type === 'fire_down') { color = '#d16969'; text = 'fire--'; isPowerDown = true; }
+        else if (item.type === 'speed_down') { color = '#d16969'; text = 'speed--'; isPowerDown = true; }
         else if (item.type.startsWith('debuff_')) {
             // Hexagono Vermelho para Debuffs
             drawHexagon(ctx, sX+25, sY+25, 18, '#f14c4c');
@@ -244,8 +245,13 @@ function draw() {
             ctx.font = "bold 9px Consolas"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(dText, sX+25, sY+25);
             return; // Pula o desenho padrão do quadrado
         }
-        ctx.fillStyle = '#252526'; ctx.fillRect(sX+5, sY+5, 40, 40); 
-        ctx.strokeStyle = color; ctx.strokeRect(sX+5, sY+5, 40, 40); 
+        
+        if (isPowerDown) {
+            drawRoundedRect(ctx, sX+5, sY+5, 40, 40, 10, color, '#252526');
+        } else {
+            ctx.fillStyle = '#252526'; ctx.fillRect(sX+5, sY+5, 40, 40); 
+            ctx.strokeStyle = color; ctx.strokeRect(sX+5, sY+5, 40, 40); 
+        }
         ctx.fillStyle = color; ctx.font = "bold 10px Consolas"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, sX+25, sY+25);
     });
 
@@ -439,16 +445,27 @@ function draw() {
     // --- FLOATING TEXTS (SCORE) ---
     floatingTexts = floatingTexts.filter(t => t.life > 0);
     floatingTexts.forEach(t => {
-        if (!isVisible(t.x, t.y)) return; // Culling
         t.life -= deltaTime;
         t.offset += deltaTime * 30; // Move up speed
         
-        const sX = centerX + (t.x - camX) * TILE_SIZE;
-        const sY = centerY + (t.y - camY) * TILE_SIZE - TILE_SIZE/2 - 20 - t.offset;
+        let worldX = t.x;
+        let worldY = t.y;
+
+        // Se tiver um alvo (player), segue a posição dele
+        if (t.targetId && players[t.targetId]) {
+            worldX = players[t.targetId].rx;
+            worldY = players[t.targetId].ry;
+        }
+
+        if (!isVisible(worldX, worldY)) return; // Culling
+        
+        const sX = centerX + (worldX - camX) * TILE_SIZE;
+        const sY = centerY + (worldY - camY) * TILE_SIZE - TILE_SIZE/2 - 20 - t.offset;
         
         ctx.save();
-        ctx.fillStyle = `rgba(220, 220, 220, ${Math.max(0, t.life)})`; // Light gray fade out
-        ctx.font = "bold 20px Consolas";
+        ctx.globalAlpha = Math.max(0, Math.min(1, t.life));
+        ctx.fillStyle = t.color || "rgba(220, 220, 220, 1)"; 
+        ctx.font = t.font || "bold 20px Consolas";
         ctx.textAlign = "center";
         ctx.fillText(t.text, sX, sY);
         ctx.restore();
@@ -472,6 +489,22 @@ function drawHexagon(ctx, x, y, r, color) {
     ctx.closePath();
     ctx.fillStyle = '#252526'; ctx.fill();
     ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function drawRoundedRect(ctx, x, y, w, h, r, strokeColor, fillColor) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fillStyle = fillColor; ctx.fill();
+    ctx.strokeStyle = strokeColor; ctx.lineWidth = 2; ctx.stroke();
 }
 
 // Inicia o loop gráfico
