@@ -50,6 +50,7 @@ function updateGlobalRank(player) {
         score: player.score,
         color: player.color,
         maxDist: player.maxDist || 0,
+        maxLevel: player.maxLevel || 0,
         kills: player.kills || 0,
         enemyKills: player.enemyKills || 0,
         deaths: player.deaths || 0
@@ -59,6 +60,7 @@ function updateGlobalRank(player) {
         const current = globalRank[existingIndex];
         if (player.score > current.score) current.score = player.score;
         if (player.maxDist > (current.maxDist || 0)) current.maxDist = player.maxDist;
+        if (player.maxLevel > (current.maxLevel || 0)) current.maxLevel = player.maxLevel;
         current.kills = player.kills;
         current.enemyKills = player.enemyKills;
         current.deaths = player.deaths;

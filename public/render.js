@@ -6,8 +6,20 @@ const C = {
     text: '#cccccc', blue: '#569cd6', green: '#6a9955', orange: '#ce9178', purple: '#c586c0', red: '#f14c4c', yellow: '#dcdcaa', white: '#ffffff'
 };
 
+// Cores para os níveis de profundidade do mapa, em tons de cinza baseados na paleta
+const LVL_COLORS = [
+    '#4a586a', // lvl 1+ (blue-gray)
+    '#566650', // lvl 2+ (green-gray)
+    '#7e6a60', // lvl 3+ (orange-gray)
+    '#736273', // lvl 4+ (purple-gray)
+    '#825353', // lvl 5+ (red-gray)
+    '#81816c', // lvl 6+ (yellow-gray)
+    '#777777', // lvl 7+ (white-gray)
+];
+
 // Global animation timer for frame delta
 let lastFrameTime = performance.now();
+let currentPlayerLevel = 0; // Rastreia o nível atual do jogador para exibir o popup
 
 // Velocity-based smoothing for more natural movement
 function damp(current, target, velocity, smoothTime, deltaTime) {
@@ -61,6 +73,25 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     if (!joined || !players[myId]) return requestAnimationFrame(draw);
+    
+    // --- LÓGICA DE NÍVEL (LEVEL) ---
+    const dist = Math.max(Math.abs(players[myId].x), Math.abs(players[myId].y));
+    let newLevel = 0;
+    if (dist > 5) {
+        newLevel = Math.min(99, Math.floor((dist - 6) / 15) + 1);
+    }
+
+    if (newLevel > currentPlayerLevel) {
+        if (typeof window.showLevelUpPopup === 'function') {
+            const colorIndex = (newLevel - 1) % LVL_COLORS.length;
+            const levelColor = LVL_COLORS[colorIndex];
+            window.showLevelUpPopup(newLevel, levelColor);
+        }
+        currentPlayerLevel = newLevel;
+    } else if (dist <= 5 && currentPlayerLevel > 0) {
+        // Reseta o nível se o jogador voltar para a área de spawn
+        currentPlayerLevel = 0;
+    }
     
     // Use performance.now() for animation timing
     const animNow = performance.now();
@@ -169,7 +200,21 @@ function draw() {
             if (tile === 1) { ctx.fillStyle = C.wall; ctx.fillRect(sX, sY, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#222'; ctx.fillRect(sX+2, sY+2, TILE_SIZE-4, TILE_SIZE-4); }
             if (tile === 2) {
                 const isInf = (Math.max(Math.abs(wX), Math.abs(wY)) > 20) && (Math.abs(Math.cos(wX * 43.11 + wY * 18.23) * 1234.56) % 1 < 0.005);
-                ctx.fillStyle = isInf ? C.blockInf : C.block; ctx.fillRect(sX+1, sY+1, TILE_SIZE-2, TILE_SIZE-2);
+                
+                if (isInf) {
+                    ctx.fillStyle = C.blockInf;
+                } else {
+                    const tileDist = Math.max(Math.abs(wX), Math.abs(wY));
+                    if (tileDist > 5) {
+                        const tileLevel = Math.floor((tileDist - 6) / 15) + 1;
+                        const colorIndex = (tileLevel - 1) % LVL_COLORS.length;
+                        ctx.fillStyle = LVL_COLORS[colorIndex];
+                    } else {
+                        ctx.fillStyle = C.block;
+                    }
+                }
+                ctx.fillRect(sX+1, sY+1, TILE_SIZE-2, TILE_SIZE-2);
+
                 if(isInf) { ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.strokeRect(sX+2, sY+2, TILE_SIZE-4, TILE_SIZE-4); }
             }
 

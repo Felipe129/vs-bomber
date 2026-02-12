@@ -140,7 +140,7 @@ setInterval(() => {
             let cause = ""; let type = "error";
             if (killingFlame.owner === p.id) { cause = `committed suicide`; type = "warn"; } 
             else if (players[killingFlame.owner]) {
-                const killer = players[killingFlame.owner];
+                const killer = players[killingFlame.owner]; killer.sessionKills++;
                 killer.kills++; killer.score += 50;
                 updateAndBroadcastRank(killer);
                 cause = `eliminated by ${killer.name}`;
@@ -165,7 +165,7 @@ setInterval(() => {
                 else {
                     if (players[flame.owner]) { 
                         let scoreVal = 10; if (en.type === 'blue') scoreVal = 30; if (en.type === 'purple') scoreVal = 20;
-                        players[flame.owner].score += scoreVal; players[flame.owner].enemyKills++;
+                        players[flame.owner].score += scoreVal; players[flame.owner].enemyKills++; players[flame.owner].sessionEnemyKills++;
                         updateAndBroadcastRank(players[flame.owner]); 
                         // LOG: Jogador eliminou Glitchie
                         io.emit('activityLog', { name: players[flame.owner].name, color: players[flame.owner].color, action: `eliminou um<br>glitchie!`, type: 'kill' });
@@ -201,18 +201,31 @@ setInterval(() => {
 
 function resetPlayer(p, causeMsg, notifType = 'error') {
     p.deaths = (p.deaths || 0) + 1;
-    updateAndBroadcastRank(p);
+
+    const timeAlive = p.spawnExitTime ? Math.floor((Date.now() - p.spawnExitTime) / 1000) : 0;
+    const deathSummary = {
+        cause: causeMsg,
+        score: p.score,
+        maxLevel: p.sessionMaxLevel,
+        timeAlive: timeAlive,
+        kills: p.sessionKills,
+        enemyKills: p.sessionEnemyKills,
+        powerups: p.sessionPowerups
+    };
+
+    // Atualiza o ranking global com os dados da sessão (maior score, maior level, etc)
+    updateAndBroadcastRank(p); 
     
     p.notified30 = false; p.notified60 = false;
     p.score = 0; p.x = 0; p.y = 0; p.bombs = 1; p.radius = 1; p.kickUntil = null; p.moveDelay = 150; 
-    p.pierceUntil = null; p.ghostUntil = null; p.maxDist = 0;
+    p.pierceUntil = null; p.ghostUntil = null; p.maxDist = 0; p.level = 0; p.sessionMaxLevel = 0;
+    p.sessionKills = 0; p.sessionEnemyKills = 0; p.spawnExitTime = null;
+    p.sessionPowerups = { bomb: 0, fire: 0, speed: 0, kick: 0, ghost: 0, pierce: 0 };
     p.isDead = true; 
     
-    const fullMsg = `Fatal Error: ${causeMsg}`;
-    
-    io.to(p.id).emit('playerKilled', fullMsg);
+    io.to(p.id).emit('playerKilled', deathSummary);
     io.emit('notification', { text: `${p.name} ${causeMsg}`, type: notifType });
-    broadcastChat({ id: 'SYSTEM', text: `[SYSTEM] ${p.name}: ${fullMsg}`, system: true });
+    broadcastChat({ id: 'SYSTEM', text: `[SYSTEM] ${p.name}: Fatal Error: ${causeMsg}`, system: true });
     
     // LOG: Jogador Morreu
     io.emit('activityLog', { name: p.name, color: p.color, action: `sofreu um erro:<br><span style="color:#cccccc">${causeMsg}</span>`, type: 'death' });
@@ -232,9 +245,15 @@ io.on('connection', (socket) => {
 
         players[socket.id] = { 
             id: socket.id, name: name || "User", x: 0, y: 0, 
-            score: saved ? saved.score : 0, 
-            bombs: 1, radius: 1, kickUntil: null, moveDelay: 150, pierceUntil: null, ghostUntil: null, lastMoveTime: 0, 
+            score: 0, // A pontuação da sessão começa em 0
+            bombs: 1, radius: 1, kickUntil: null, moveDelay: 150, pierceUntil: null, ghostUntil: null, lastMoveTime: 0,
             color: playerColor, // <--- Aplica a cor persistente aqui
+            sessionKills: 0,
+            sessionEnemyKills: 0,
+            sessionPowerups: { bomb: 0, fire: 0, speed: 0, kick: 0, ghost: 0, pierce: 0 },
+            spawnExitTime: null,
+            sessionMaxLevel: 0,
+            level: 0, maxLevel: saved ? (saved.maxLevel || 0) : 0,
             maxDist: saved ? (saved.maxDist || 0) : 0, 
             kills: saved ? (saved.kills || 0) : 0, 
             enemyKills: saved ? (saved.enemyKills || 0) : 0, 
@@ -269,6 +288,22 @@ io.on('connection', (socket) => {
                 const dist = Math.max(Math.abs(p.x), Math.abs(p.y));
                 if (dist > p.maxDist) p.maxDist = dist;
                 
+                if (dist > 5 && !p.spawnExitTime) {
+                    p.spawnExitTime = Date.now();
+                }
+
+                // --- CÁLCULO DE NÍVEL NO SERVIDOR ---
+                let newLevel = 0;
+                if (dist > 5) {
+                    newLevel = Math.min(99, Math.floor((dist - 6) / 15) + 1);
+                }
+                p.level = newLevel;
+                if (p.level > p.sessionMaxLevel) p.sessionMaxLevel = p.level;
+                if (p.level > p.maxLevel) {
+                    p.maxLevel = p.level;
+                }
+                // --- FIM CÁLCULO DE NÍVEL ---
+                
                 if (dist > 30 && !p.notified30) { p.notified30 = true; socket.emit('notification', { text: "INFO: Você já está quase na metade do caminho.", type: "info" }); }
                 if (dist > 60 && !p.notified60) { p.notified60 = true; socket.emit('notification', { text: "WARN: Você está chegando na borda...", type: "warn" }); }
                 
@@ -277,7 +312,12 @@ io.on('connection', (socket) => {
                     const item = powerUps.get(key);
                     let powerMsg = "";
                     
-                    if (item.type === 'bomb') { p.bombs++; powerMsg = "Mais bombas!"; } 
+                    // Incrementa o contador de power-ups da sessão
+                    if (p.sessionPowerups[item.type] !== undefined) {
+                        p.sessionPowerups[item.type]++;
+                    }
+
+                    if (item.type === 'bomb') { p.bombs++; powerMsg = "Mais bombas!"; }
                     else if (item.type === 'fire') { p.radius++; powerMsg = "Raio da explosão aumentado!"; } 
                     else if (item.type === 'speed') { p.moveDelay = Math.max(50, p.moveDelay - 20); powerMsg = "Velocidade aumentada!"; }
                     else if (item.type === 'kick') { p.kickUntil = now + 10000; powerMsg = "Chutar Bombas"; } 

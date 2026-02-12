@@ -190,6 +190,20 @@
     <div id="game-over" class="modal">
         <h2 style="color: var(--red); margin-top:0;">Runtime Error</h2>
         <p style="color: #ccc; font-size: 13px;">Uncaught Exception: <span id="death-msg" style="color: var(--orange)">Process Terminated</span></p>
+        <div id="game-over-stats" style="text-align: left; margin: 20px 0; font-size: 12px; background: #1e1e1e; padding: 10px; border-left: 2px solid #454545;">
+            <h4 style="margin: 0 0 10px 0; color: var(--green);">// Session Stats</h4>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #2b2b2b;"><td style="padding: 3px;">Score:</td><td id="stat-score" style="text-align: right; color: var(--yellow);">0</td></tr>
+                <tr style="border-bottom: 1px solid #2b2b2b;"><td style="padding: 3px;">Max Level:</td><td id="stat-max-level" style="text-align: right; color: var(--yellow);">0</td></tr>
+                <tr style="border-bottom: 1px solid #2b2b2b;"><td style="padding: 3px;">Time Alive:</td><td id="stat-time-alive" style="text-align: right; color: var(--yellow);">0m 00s</td></tr>
+                <tr style="border-bottom: 1px solid #2b2b2b;"><td style="padding: 3px;">Players Killed:</td><td id="stat-player-kills" style="text-align: right; color: var(--yellow);">0</td></tr>
+                <tr><td style="padding: 3px;">Glitches Killed:</td><td id="stat-glitch-kills" style="text-align: right; color: var(--yellow);">0</td></tr>
+            </table>
+            <h4 style="margin: 15px 0 10px 0; color: var(--purple);">// Modules Loaded</h4>
+            <ul id="stat-powerups" style="list-style: none; padding: 0; margin: 0; color: #ccc;">
+                <li>Nenhum módulo coletado</li>
+            </ul>
+        </div>
         <button class="btn-primary btn-danger" onclick="restartSession()">Restart Debugging</button>
     </div>
 

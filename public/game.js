@@ -125,6 +125,48 @@ function createPersistentToast(id, title, msg, duration) {
     toast.dataset.intervalId = interval; 
 }
 
+window.showLevelUpPopup = function(level, color) {
+    const existing = document.getElementById('level-up-popup');
+    if (existing) {
+        if (existing.dataset.timeoutId) clearTimeout(existing.dataset.timeoutId);
+        existing.remove();
+    }
+
+    const popup = document.createElement('div');
+    popup.id = 'level-up-popup';
+    popup.innerText = `LVL ${level}`;
+
+    // Usa a cor do nível passada, ou um amarelo padrão como fallback.
+    const textColor = color || '#dcdcaa';
+
+    Object.assign(popup.style, {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        padding: '10px 25px',
+        fontFamily: 'Consolas, monospace',
+        fontSize: '32px',
+        fontWeight: 'bold',
+        color: textColor,
+        backgroundColor: 'rgba(30, 30, 30, 0.85)',
+        border: `2px solid ${textColor}`,
+        borderRadius: '4px',
+        zIndex: '1001',
+        pointerEvents: 'none',
+        opacity: '1',
+        transition: 'opacity 0.5s ease-out'
+    });
+
+    document.body.appendChild(popup);
+
+    const timeoutId = setTimeout(() => {
+        popup.style.opacity = '0';
+        setTimeout(() => { if (popup.parentElement) popup.remove(); }, 500);
+    }, 1000);
+    popup.dataset.timeoutId = timeoutId;
+};
+
 socket.on('init', d => {
     myId = d.id; players = d.players; enemies = {};
     Object.values(d.enemies).forEach(en => { enemies[en.id] = { ...en, rx: en.x, ry: en.y }; });
@@ -229,9 +271,12 @@ socket.on('rankUpdate', list => {
     document.getElementById('live-list').innerHTML = livePlayers.map(p => {
         let isGhost = (p.ghostUntil && p.ghostUntil > now);
         let canKick = (p.kickUntil && p.kickUntil > now);
+        const speedLevel = Math.round(Math.max(0, (150 - p.moveDelay) / 20));
+
         return `<div style="padding: 4px 10px; border-bottom: 1px solid #2b2b2b; font-family: Consolas; font-size: 11px;">
-            <div style="display:flex; justify-content:space-between;"><span style="color:#569cd6">#${p.name}</span><span style="color:#6a9955">[${p.x}, ${p.y}]</span></div>
-            <div style="color:#808080;">dist: ${p.maxDist} | B:${p.bombs} F:${p.radius}</div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:${p.color}">#${p.name}</span><span style="color:#6a9955">[${p.x}, ${p.y}]</span></div>
+            <div style="color:#808080;">LVL: ${p.level || 0} | Score: ${p.score}</div>
+            <div style="color:#808080;">B:${p.bombs} F:${p.radius} S:${speedLevel}</div>
             ${isGhost ? '<span style="color:#c586c0">ghost </span>' : ''}${canKick ? '<span style="color:#dcdcaa">kick </span>' : ''}
         </div>`;
     }).join('');
@@ -240,7 +285,7 @@ socket.on('rankUpdate', list => {
 socket.on('leaderboardUpdate', list => {
     document.getElementById('global-list').innerHTML = list.map((p, index) => {
         return `<div style="padding: 4px 10px; border-bottom: 1px solid #2b2b2b; font-size:11px;">
-            <div style="display:flex; justify-content:space-between;"><span><span style="color:#6a9955">#${index+1}</span> <span style="color:${p.color}">${p.name}</span></span><span>${p.score}pts</span></div>
+            <div style="display:flex; justify-content:space-between;"><span><span style="color:#6a9955">#${index+1}</span> <span style="color:${p.color}">${p.name}</span></span><span>Score: ${p.score} | Max LVL: ${p.maxLevel || 0}</span></div>
         </div>`;
     }).join('');
 });
@@ -262,8 +307,46 @@ socket.on('mapUpdate', d => { destroyedBlocks = new Set(d.destroyedBlocks); });
 socket.on('powerUpsUpdate', d => powerUps = new Map(d));
 socket.on('bombUpdate', b => currentBombs = b);
 
-socket.on('playerKilled', m => { 
+socket.on('playerKilled', summary => { 
     sfx.gameOver(); 
-    document.getElementById('death-msg').innerText = m;
+    
+    // Causa da morte
+    document.getElementById('death-msg').innerText = `Fatal Error: ${summary.cause}`;
+    
+    // Preenche as estatísticas
+    document.getElementById('stat-score').innerText = summary.score;
+    document.getElementById('stat-max-level').innerText = summary.maxLevel;
+    
+    const time = summary.timeAlive;
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+    document.getElementById('stat-time-alive').innerText = `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+    
+    document.getElementById('stat-player-kills').innerText = summary.kills;
+    document.getElementById('stat-glitch-kills').innerText = summary.enemyKills;
+    
+    // Monta a lista de power-ups
+    const powerupsList = document.getElementById('stat-powerups');
+    powerupsList.innerHTML = ''; // Limpa a lista anterior
+    const powerupMap = {
+        bomb: 'Bomb++', fire: 'Fire++', speed: 'Speed++',
+        kick: 'Kick()', ghost: 'Ghost', pierce: 'Pierce'
+    };
+    
+    let collectedAny = false;
+    for (const type in summary.powerups) {
+        if (summary.powerups[type] > 0) {
+            collectedAny = true;
+            const li = document.createElement('li');
+            li.innerText = `${powerupMap[type] || type}: ${summary.powerups[type]}`;
+            powerupsList.appendChild(li);
+        }
+    }
+    if (!collectedAny) {
+        const li = document.createElement('li');
+        li.innerText = 'Nenhum módulo coletado';
+        powerupsList.appendChild(li);
+    }
+
     document.getElementById('game-over').style.display = 'block';
 });
