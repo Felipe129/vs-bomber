@@ -55,11 +55,15 @@ window.restartSession = function() {
 let myId, players = {}, enemies = {}, explosions = [], currentBombs = [];
 let destroyedBlocks = new Set(), powerUps = new Map(), joined = false;
 let myPos = { x: 0, y: 0, rx: 0, ry: 0 }; 
-let chatting = false, lastStep = 0, lastBomb = 0;
+let chatting = false, lastStep = 0, lastBomb = 0, floatingTexts = [];
 
 // --- SISTEMA DE ACTIVITY LOG GLOBAL ---
 socket.on('activityLog', data => {
     addActivityLog(data.name, data.color, data.action, data.type);
+});
+
+socket.on('floatingText', data => {
+    floatingTexts.push({ x: data.x + (Math.random() - 0.5) * 0.5, y: data.y + (Math.random() - 0.5) * 0.5, text: data.text, life: 1.5, offset: 0 });
 });
 
 function addActivityLog(name, color, action, type) {

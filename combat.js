@@ -4,7 +4,7 @@ function detonateBomb(bombId, sourceId, ctx) {
     // Desestruturando o contexto passado pelo servidor
     const {
         activeBombs, destroyedBlocks, powerUps, activeFlames, enemies,
-        getTileAt, spawnEnemy, io, broadcastChat
+        getTileAt, spawnEnemy, io, broadcastChat, players
     } = ctx;
 
     const bomb = activeBombs.get(bombId);
@@ -28,6 +28,11 @@ function detonateBomb(bombId, sourceId, ctx) {
             if (tile === 2) { // Bloco de madeira: quebra o bloco
                 const key = `${tx},${ty}`;
                 destroyedBlocks.add(key);
+                
+                if (players[sourceId]) {
+                    players[sourceId].score += 1;
+                    io.emit('floatingText', { x: players[sourceId].x, y: players[sourceId].y, text: "+1" });
+                }
                 
                 // Lógica do Bloco Infectado
                 const distCenter = Math.max(Math.abs(tx), Math.abs(ty));

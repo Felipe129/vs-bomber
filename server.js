@@ -36,7 +36,7 @@ const getTileAt = (x, y) => world.getTileAt(x, y, destroyedBlocks);
 const findSafeTile = (x, y) => world.findSafeTile(x, y, destroyedBlocks, activeBombs);
 
 function getGameContext() {
-    return { activeBombs, destroyedBlocks, powerUps, activeFlames, enemies, getTileAt, spawnEnemy, io, broadcastChat };
+    return { activeBombs, destroyedBlocks, powerUps, activeFlames, enemies, getTileAt, spawnEnemy, io, broadcastChat, players };
 }
 
 function resetMapRound() {
@@ -141,7 +141,8 @@ setInterval(() => {
             if (killingFlame.owner === p.id) { cause = `committed suicide`; type = "warn"; } 
             else if (players[killingFlame.owner]) {
                 const killer = players[killingFlame.owner]; killer.sessionKills++;
-                killer.kills++; killer.score += 50;
+                killer.kills++; killer.score += 30;
+                io.emit('floatingText', { x: killer.x, y: killer.y, text: "+30" });
                 updateAndBroadcastRank(killer);
                 cause = `eliminated by ${killer.name}`;
                 // LOG: Jogador eliminou jogador
@@ -164,8 +165,9 @@ setInterval(() => {
                 if (en.health > 0) { en.invincibleUntil = now + 1500; enemyUpdate = true; } 
                 else {
                     if (players[flame.owner]) { 
-                        let scoreVal = 10; if (en.type === 'blue') scoreVal = 30; if (en.type === 'purple') scoreVal = 20;
-                        players[flame.owner].score += scoreVal; players[flame.owner].enemyKills++; players[flame.owner].sessionEnemyKills++;
+                        players[flame.owner].score += 10; 
+                        io.emit('floatingText', { x: players[flame.owner].x, y: players[flame.owner].y, text: "+10" });
+                        players[flame.owner].enemyKills++; players[flame.owner].sessionEnemyKills++;
                         updateAndBroadcastRank(players[flame.owner]); 
                         // LOG: Jogador eliminou Glitchie
                         io.emit('activityLog', { name: players[flame.owner].name, color: players[flame.owner].color, action: `eliminou um<br>glitchie!`, type: 'kill' });
@@ -324,6 +326,9 @@ io.on('connection', (socket) => {
                     else if (item.type === 'ghost') { p.ghostUntil = now + 10000; powerMsg = "Modo Ghost"; } 
                     else if (item.type === 'pierce') { p.pierceUntil = now + 10000; powerMsg = "Bomba Perfurante"; }
                     
+                    p.score += 3;
+                    io.emit('floatingText', { x: p.x, y: p.y, text: "+3" });
+
                     powerUps.delete(key); 
                     io.emit('powerUpsUpdate', Array.from(powerUps)); 
                     io.emit('sfx', 'powerup');

@@ -407,6 +407,23 @@ function draw() {
         ctx.fillText(`[${p.x}, ${p.y}]`, sX+25, sY-1);
     });
 
+    // --- FLOATING TEXTS (SCORE) ---
+    floatingTexts = floatingTexts.filter(t => t.life > 0);
+    floatingTexts.forEach(t => {
+        t.life -= deltaTime;
+        t.offset += deltaTime * 30; // Move up speed
+        
+        const sX = centerX + (t.x - camX) * TILE_SIZE;
+        const sY = centerY + (t.y - camY) * TILE_SIZE - TILE_SIZE/2 - 20 - t.offset;
+        
+        ctx.save();
+        ctx.fillStyle = `rgba(220, 220, 220, ${Math.max(0, t.life)})`; // Light gray fade out
+        ctx.font = "bold 14px Consolas";
+        ctx.textAlign = "center";
+        ctx.fillText(t.text, sX, sY);
+        ctx.restore();
+    });
+
     explosions = explosions.filter(ex => Date.now() - ex.time < 1000);
     
     ctx.restore();
