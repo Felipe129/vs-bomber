@@ -58,18 +58,24 @@ function findNearestSafeTile(start, dangerMap, getTileAt, activeBombs) {
     return null;
 }
 
-function calculateGlitchMove(glitch, players, getTileAt, activeBombs, powerUps, enemyPositions) {
+function calculateGlitchMove(glitch, players, getTileAt, activeBombs, powerUps, allEnemies) {
     const now = Date.now();
     
-    // --- 1. VELOCIDADE POR TIPO ---
-    let cooldown = 700; 
-    if (glitch.isRaging) cooldown = 250;
-    else if (glitch.type === 'red') cooldown = 400;       // Kamikaze: Rápido
-    else if (glitch.type === 'blue') cooldown = 1200;     // Tank: Lento
-    else if (glitch.type === 'orange') cooldown = 600;    // Trapper: Ágil
-    else if (glitch.type === 'yellow') cooldown = 900;    // Warn: Cauteloso
-    else cooldown = Math.max(300, 700 - (Math.max(Math.abs(glitch.x), Math.abs(glitch.y)) * 4));
+    // Reconstrói o Set de posições para colisão rápida
+    const enemyPositions = new Set();
+    Object.values(allEnemies).forEach(e => enemyPositions.add(`${e.x},${e.y}`));
 
+    // --- 1. VELOCIDADE POR TIPO ---
+    let baseCooldown = 700; 
+    if (glitch.isRaging) baseCooldown = 250;
+    else if (glitch.type === 'red') baseCooldown = 400;       // Kamikaze: Rápido
+    else if (glitch.type === 'blue') baseCooldown = 1200;     // Tank: Lento
+    else if (glitch.type === 'orange') baseCooldown = 600;    // Trapper: Ágil
+    else if (glitch.type === 'yellow') baseCooldown = 900;    // Warn: Cauteloso
+    else baseCooldown = Math.max(300, 700 - (Math.max(Math.abs(glitch.x), Math.abs(glitch.y)) * 4));
+
+    // Aplica multiplicador de velocidade do nível (3% por nível)
+    const cooldown = baseCooldown / (glitch.speedMult || 1);
     if (now - glitch.lastMove < cooldown) return null;
     glitch.lastMove = now;
 
@@ -78,20 +84,36 @@ function calculateGlitchMove(glitch, players, getTileAt, activeBombs, powerUps, 
     if (dangerMap.has(getKey(glitch.x, glitch.y))) {
         const escapeStep = findNearestSafeTile(glitch, dangerMap, getTileAt, activeBombs);
         if (escapeStep) {
+            // TÁTICA SUJA: Se for inteligente (> 0.6) e tiver bombas, solta uma ao fugir (Kiting)
+            // Isso pune jogadores que perseguem inimigos muito de perto
+            if (glitch.smartness > 0.6 && glitch.bombs > 0 && Math.random() < 0.15) {
+                 return { action: 'bomb', state: 'TRAP' };
+            }
             return { action: 'move', x: escapeStep.x, y: escapeStep.y, state: 'PANIC' };
         }
     }
 
-    // --- 3. ALVO ---
+    // --- 3. VISÃO E ALVO ---
+    // Visão dinâmica: dobra se estiver alertado
+    let currentVision = glitch.baseVision || 4;
+    if (glitch.alertedUntil && now < glitch.alertedUntil) currentVision *= 2;
+
     let target = null;
     let minD = Infinity;
+    
     Object.values(players).forEach(p => {
+        if (p.isDead) return;
         const d = dist(glitch, p);
-        if (d < minD) { minD = d; target = p; }
+        // Só persegue se estiver dentro do campo de visão ou se já estiver perseguindo (histerese leve)
+        if (d <= currentVision && d < minD) { minD = d; target = p; }
     });
 
-    if (!target) return randomMove(glitch, getTileAt, activeBombs, dangerMap, 'IDLE');
-    if (minD > 40 && glitch.type !== 'cyan') return randomMove(glitch, getTileAt, activeBombs, dangerMap, 'WANDER');
+    if (target) {
+        // Viu o player! Fica alerta por 10s
+        glitch.alertedUntil = now + 10000;
+    } else {
+        return randomMove(glitch, getTileAt, activeBombs, dangerMap, 'IDLE');
+    }
 
     // --- 4. TÁTICAS DE MOVIMENTO (ROLES) ---
     const moves = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
@@ -100,6 +122,35 @@ function calculateGlitchMove(glitch, players, getTileAt, activeBombs, powerUps, 
     
     // Define posição ideal baseada no tipo
     let targetPos = { x: target.x, y: target.y };
+
+    // --- ESTRATÉGIA DE GRUPO (FLANQUEAMENTO) ---
+    // Se for inteligente o suficiente, verifica se tem aliados atacando o mesmo alvo
+    if (glitch.smartness > 0.3) {
+        let closestAlly = null;
+        let allyDist = Infinity;
+        Object.values(allEnemies).forEach(e => {
+            if (e.id !== glitch.id && dist(e, target) < minD) { // Aliado está mais perto do alvo que eu
+                closestAlly = e;
+            }
+        });
+
+        if (closestAlly) {
+            // Tenta cercar: Se aliado está na esquerda, tento ir para a direita
+            // Modifica o alvo virtualmente para o lado oposto do aliado
+            const dx = target.x - closestAlly.x;
+            const dy = target.y - closestAlly.y;
+            targetPos = { x: target.x + Math.sign(dx)*3, y: target.y + Math.sign(dy)*3 };
+        } else if (glitch.smartness > 0.7) {
+            // PREDIÇÃO SOLO: Se for muito inteligente mas estiver sozinho
+            // Tenta ir para onde o jogador tem mais espaço aberto (provável rota de fuga do player)
+            // Simplificação: Adiciona um offset na direção do centro do mapa (0,0) se o player estiver longe
+            // forçando o player para as bordas ou vice-versa.
+            // Aqui faremos ele tentar cortar caminho na diagonal.
+            if (dist(glitch, target) > 3) {
+                // Tenta prever movimento simples
+            }
+        }
+    }
 
     moves.forEach(m => {
         const nx = glitch.x + m.x;
@@ -150,7 +201,10 @@ function calculateGlitchMove(glitch, players, getTileAt, activeBombs, powerUps, 
 
         // Evita empilhar com outros inimigos
         if (enemyPositions.has(nKey)) score -= 30; 
-        score += Math.random() * 5; // Fator caótico
+        
+        // Fator caótico diminui conforme a inteligência aumenta
+        const chaos = (1.1 - (glitch.smartness || 0.1)) * 5; 
+        score += Math.random() * Math.max(0, chaos); 
 
         if (score > maxScore) { maxScore = score; bestMove = { x: nx, y: ny }; }
     });

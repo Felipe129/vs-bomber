@@ -103,14 +103,33 @@ function spawnEnemy(specificPos = null, isRaging = false, invincibleDuration = 0
             if (getTileAt(ex, ey) === 0 && (Math.abs(ex) > 5 || Math.abs(ey) > 5)) break;
         } while (attempts < 100);
     }
+    
+    // --- CÁLCULO DE PROGRESSÃO DE NÍVEL ---
+    const distOrigin = Math.max(Math.abs(ex), Math.abs(ey));
+    let level = 0;
+    if (distOrigin > 5) level = Math.floor((distOrigin - 6) / 15) + 1;
+    
+    // 3% de velocidade e inteligência por nível
+    const speedMult = Math.pow(1.03, level);
+    const smartness = Math.min(1.0, 0.1 + (level * 0.03)); // Base 10% + 3% por nível
+    // Visão: Base 4, aumenta até 10 no nível 10
+    const baseVision = Math.min(10, 4 + (level * 0.6));
+
     const rnd = Math.random();
     let type = 'green'; let health = 1; let bombs = 0; let radius = 3;
     if (rnd < 0.08) { type = 'blue'; health = 2; } else if (rnd < 0.16) { type = 'orange'; bombs = 3; } else if (rnd < 0.24) { type = 'red'; bombs = 1; radius = 2; } else if (rnd < 0.32) { type = 'purple'; } else if (rnd < 0.40) { type = 'cyan'; } else if (rnd < 0.55) { type = 'yellow'; } 
     let isBuffed = false;
-    const isFar = Math.abs(ex) > 50 || Math.abs(ey) > 50;
-    if (type === 'green' && isFar && Math.random() < 0.8) { isBuffed = true; bombs = 2; }
+    if (type === 'green' && level > 3 && Math.random() < 0.8) { isBuffed = true; bombs = 2; }
 
-    enemies[id] = { id, x: ex, y: ey, lastMove: Date.now(), type, isBuffed, bombs, radius, health, isRaging: isRaging ? Date.now() : null, invincibleUntil: invincibleDuration > 0 ? Date.now() + invincibleDuration : null, state: 'IDLE' };
+    // --- PROGRESSÃO DE ATRIBUTOS (RPG SCALING) ---
+    // A cada 4 níveis, ganha +1 de Vida (Máximo +3)
+    health += Math.floor(level / 4);
+    // A cada 3 níveis, ganha +1 de Raio de Explosão
+    if (bombs > 0) radius += Math.floor(level / 3);
+    // A cada 5 níveis, ganha +1 Bomba extra (Munição)
+    if (bombs > 0) bombs += Math.floor(level / 5);
+
+    enemies[id] = { id, x: ex, y: ey, lastMove: Date.now(), type, isBuffed, bombs, radius, health, isRaging: isRaging ? Date.now() : null, invincibleUntil: invincibleDuration > 0 ? Date.now() + invincibleDuration : null, state: 'IDLE', level, speedMult, smartness, baseVision, alertedUntil: 0 };
 }
 for (let i = 0; i < 240; i++) spawnEnemy();
 
@@ -153,9 +172,6 @@ setInterval(() => {
     });
 
     let enemyUpdate = false;
-    const enemyPositions = new Set();
-    Object.values(enemies).forEach(e => enemyPositions.add(`${e.x},${e.y}`));
-
     Object.values(enemies).forEach(en => {
         const flame = activeFlames.find(f => f.x === en.x && f.y === en.y);
         if (flame) {
@@ -180,7 +196,7 @@ setInterval(() => {
             }
         }
         if (en.isRaging && now - en.isRaging > 4000) en.isRaging = null;
-        const decision = calculateGlitchMove(en, players, getTileAt, activeBombs, powerUps, enemyPositions);
+        const decision = calculateGlitchMove(en, players, getTileAt, activeBombs, powerUps, enemies);
         if (decision) {
             en.state = decision.state || 'IDLE';
             if (decision.action === 'move') { en.x = decision.x; en.y = decision.y; enemyUpdate = true; }

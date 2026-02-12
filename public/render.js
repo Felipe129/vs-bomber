@@ -394,15 +394,15 @@ function draw() {
         ctx.globalAlpha = 1.0;
         
         ctx.textAlign = "center"; 
-        ctx.font = "11px Consolas";
+        ctx.font = "bold 14px Consolas";
         ctx.fillStyle = C.blue; 
         ctx.textAlign = "center"; 
         
-        ctx.font = "11px Consolas";
+        ctx.font = "bold 14px Consolas";
         ctx.fillStyle = C.blue; 
         ctx.fillStyle = C.blue; ctx.fillText(`${p.name}`, sX+25, sY-15);
         
-        ctx.font = "9px Consolas";
+        ctx.font = "12px Consolas";
         ctx.fillStyle = C.text; 
         ctx.fillText(`[${p.x}, ${p.y}]`, sX+25, sY-1);
     });
@@ -418,7 +418,7 @@ function draw() {
         
         ctx.save();
         ctx.fillStyle = `rgba(220, 220, 220, ${Math.max(0, t.life)})`; // Light gray fade out
-        ctx.font = "bold 14px Consolas";
+        ctx.font = "bold 20px Consolas";
         ctx.textAlign = "center";
         ctx.fillText(t.text, sX, sY);
         ctx.restore();
