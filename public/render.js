@@ -6,9 +6,6 @@ const C = {
     text: '#cccccc', blue: '#569cd6', green: '#6a9955', orange: '#ce9178', purple: '#c586c0', red: '#f14c4c', yellow: '#dcdcaa', white: '#ffffff'
 };
 
-// Time-based lerp for smoother, frame-rate independent movement
-const lerp = (start, end, amt) => start + (end - start) * Math.min(amt, 1);
-
 // Global animation timer for frame delta
 let lastFrameTime = performance.now();
 
@@ -65,13 +62,12 @@ function draw() {
     
     if (!joined || !players[myId]) return requestAnimationFrame(draw);
     
-    // Use a single 'now' for both animation and game logic
-    const now = performance.now();
-    const lerpSpeed = 0.2; // (legacy, can be removed if not used elsewhere)
+    // Use performance.now() for animation timing
+    const animNow = performance.now();
 
     // Suaviza a movimentação visual (Interpolação com velocity e deltaTime)
-    const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.05); // Clamp para estabilidade
-    lastFrameTime = now;
+    const deltaTime = Math.min((animNow - lastFrameTime) / 1000, 0.05); // Clamp para estabilidade
+    lastFrameTime = animNow;
     // Parâmetros de suavização
     const smoothTimeSelf = 0.13; // Jogador local (mais responsivo)
     const smoothTimeOther = 0.22; // Outros jogadores e glitches (mais suave)
@@ -152,6 +148,12 @@ function draw() {
     ctx.fillStyle = "#3c3c3c"; // Cinza escuro discreto
     
 
+    // Otimização: Cria mapas de lookup para bombas e explosões para evitar N^2 loops
+    const bombMap = new Map();
+    currentBombs.forEach(b => bombMap.set(`${b.x},${b.y}`, b));
+
+    const explosionMap = new Map();
+    explosions.forEach(ex => explosionMap.set(`${ex.x},${ex.y}`, ex));
     
 
     // Desenha o mapa (Paredes, Blocos, Itens e Bombas)
@@ -160,6 +162,7 @@ function draw() {
             const wX = Math.round(camX) + c, wY = Math.round(camY) + r;
             const sX = centerX + (wX - camX) * TILE_SIZE - TILE_SIZE/2;
             const sY = centerY + (wY - camY) * TILE_SIZE - TILE_SIZE/2;
+            const key = `${wX},${wY}`;
             const tile = getTileAt(wX, wY); 
             
             if (Math.abs(wX) <= 5 && Math.abs(wY) <= 5) { ctx.fillStyle = C.safe; ctx.fillRect(sX, sY, TILE_SIZE, TILE_SIZE); }
@@ -170,8 +173,8 @@ function draw() {
                 if(isInf) { ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.strokeRect(sX+2, sY+2, TILE_SIZE-4, TILE_SIZE-4); }
             }
 
-            if (powerUps.has(`${wX},${wY}`)) {
-                const item = powerUps.get(`${wX},${wY}`); 
+            if (powerUps.has(key)) {
+                const item = powerUps.get(key); 
                 let color = C.white; let text = '?';
                 if (item.type === 'bomb') { color = C.blue; text = 'bomb++'; } else if (item.type === 'fire') { color = C.orange; text = 'fire++'; } else if (item.type === 'kick') { color = C.yellow; text = 'kick()'; } else if (item.type === 'ghost') { color = C.purple; text = 'ghost'; } else if (item.type === 'speed') { color = C.green; text = 'speed++'; } else if (item.type === 'pierce') { color = C.red; text = 'pierce'; } 
                 ctx.fillStyle = '#252526'; ctx.fillRect(sX+5, sY+5, 40, 40); 
@@ -179,15 +182,15 @@ function draw() {
                 ctx.fillStyle = color; ctx.font = "bold 10px Consolas"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, sX+25, sY+25);
             }
 
-            if (currentBombs.some(b => b.x === wX && b.y === wY)) { 
-                const bomb = currentBombs.find(b => b.x === wX && b.y === wY);
+            const bomb = bombMap.get(key);
+            if (bomb) { 
                 const color = bomb.isPierce ? C.purple : C.blue;
                 const tag = bomb.isPierce ? "<pierce>" : "<bomb>";
                 ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sX+25, sY+25, 18, 0, Math.PI*2); ctx.fill();
                 ctx.fillStyle = '#1e1e1e'; ctx.font = "bold 10px Consolas"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(tag, sX+25, sY+25);
             }
             
-            const exp = explosions.find(ex => ex.x === wX && ex.y === wY);
+            const exp = explosionMap.get(key);
             if (exp) {
                 const color = exp.isPierce ? C.purple : C.orange; 
                 ctx.fillStyle = color; ctx.globalAlpha = 0.8; ctx.fillRect(sX, sY, TILE_SIZE, TILE_SIZE);
@@ -250,7 +253,7 @@ function draw() {
             case 'yellow': color = C.yellow; text = "<warn>"; break;
         }
         if (en.isBuffed) { color = C.red; text = "<error>"; }
-        if (en.invincibleUntil && now < en.invincibleUntil) {
+        if (en.invincibleUntil && Date.now() < en.invincibleUntil) {
             ctx.strokeStyle = C.white; ctx.lineWidth = 3; ctx.strokeRect(sX+2, sY+7, 46, 36);
         }
         ctx.fillStyle = color; ctx.fillRect(sX+5, sY+10, 40, 30);
@@ -320,15 +323,7 @@ function draw() {
     Object.values(players).forEach(p => {
         if (p.isDead) return;
         
-        // Inicializa as posições visuais se não existirem
-        if (p.rx === undefined) { p.rx = p.x; p.ry = p.y; }
-        
-        // LERP: Seu jogador é quase instantâneo, os outros são suaves
-        const speed = (p.id === myId) ? 0.35 : 0.15;
-        p.rx = lerp(p.rx, p.x, speed);
-        p.ry = lerp(p.ry, p.y, speed);
-
-        // O cálculo do sX e sY deve usar o p.rx e p.ry
+        // O cálculo do sX e sY deve usar o p.rx e p.ry (posições interpoladas)
         const sX = centerX + (p.rx - camX) * TILE_SIZE - TILE_SIZE/2;
         const sY = centerY + (p.ry - camY) * TILE_SIZE - TILE_SIZE/2;
         
@@ -367,7 +362,7 @@ function draw() {
         ctx.fillText(`[${p.x}, ${p.y}]`, sX+25, sY-1);
     });
 
-    explosions = explosions.filter(ex => Date.now() - ex.time < 1000); 
+    explosions = explosions.filter(ex => Date.now() - ex.time < 1000);
     
     ctx.restore();
     requestAnimationFrame(draw);

@@ -21,6 +21,14 @@ const DEATH_SOUNDS = [
     'nao-sobrou-nada_fZprXSC.mp3'
 ];
 
+// Otimização: Pré-carrega os sons de "meme" para evitar a criação de `new Audio()`
+// a cada efeito, o que pode causar atrasos e consumir mais recursos.
+const memeAudio = {
+    place: new Audio('sounds/fiau.mp3'),
+    explosion: new Audio('sounds/som-de-explosao.mp3'),
+    death: DEATH_SOUNDS.map(sound => new Audio('sounds/' + sound))
+};
+
 window.toggleSoundMode = () => {
     soundMemeMode = !soundMemeMode;
     const icon = document.getElementById('sound-icon');
@@ -94,7 +102,9 @@ window.sfx = {
     move: () => { playSynth([120, 80], 'sine', 0.08, 0.03); },
     place: () => { 
         if (soundMemeMode) {
-            new Audio('sounds/fiau.mp3').play().catch(() => {}); 
+            const audio = memeAudio.place;
+            audio.currentTime = 0; // Reinicia o som se já estiver tocando
+            audio.play().catch(() => {}); 
         } else {
             playSynth([800, 100], 'sine', 0.15, 0.1);
         }
@@ -113,7 +123,8 @@ window.sfx = {
         const distMult = Math.max(0, 1 - (d / maxRadius));
 
         if (soundMemeMode) {
-            const explosionAudio = new Audio('sounds/som-de-explosao.mp3');
+            const explosionAudio = memeAudio.explosion;
+            explosionAudio.currentTime = 0;
             explosionAudio.volume = 0.8 * distMult; 
             explosionAudio.play().catch(() => {}); 
         } else {
@@ -148,8 +159,9 @@ window.sfx = {
     glitchDeath: () => { playSynth([400, 10], 'sawtooth', 0.2, 0.05); },
     gameOver: () => {
         if (soundMemeMode) {
-            const randomSound = DEATH_SOUNDS[Math.floor(Math.random() * DEATH_SOUNDS.length)];
-            new Audio('sounds/' + randomSound).play().catch(() => {});
+            const randomAudio = memeAudio.death[Math.floor(Math.random() * memeAudio.death.length)];
+            randomAudio.currentTime = 0;
+            randomAudio.play().catch(() => {});
         } else {
             const t = audioCtx.currentTime;
             [261.63, 196.00, 155.56].forEach((f, i) => {
