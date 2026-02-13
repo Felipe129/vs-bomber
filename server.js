@@ -7,6 +7,8 @@ const io = require('socket.io')(http);
 const { calculateGlitchMove } = require('./ai_glitch');
 const storage = require('./storage'); 
 const world = require('./world'); 
+const worldDuel = require('./world_duel');
+const duelManager = require('./duel_manager');
 const combat = require('./combat'); 
 
 app.use(express.static(__dirname + '/public'));
@@ -32,11 +34,26 @@ function updateAndBroadcastRank(player) {
     io.emit('leaderboardUpdate', updatedRank);
 }
 
-const getTileAt = (x, y) => world.getTileAt(x, y, destroyedBlocks);
-const findSafeTile = (x, y) => world.findSafeTile(x, y, destroyedBlocks, activeBombs);
+// Helper para chaves compostas por dimensão
+const getDimKey = (x, y, dim) => `${dim}:${x},${y}`;
+
+// Wrapper do getTileAt que suporta dimensões
+const getTileAt = (x, y, dim = 'main') => {
+    // Filtra blocos destruídos apenas da dimensão atual
+    // Cria um Set temporário com chaves locais "x,y" para passar ao world.js
+    // (Otimização: idealmente world.js aceitaria o prefixo, mas isso mantém compatibilidade)
+    const localDestroyed = new Set();
+    destroyedBlocks.forEach(k => { if(k.startsWith(dim+':')) localDestroyed.add(k.split(':')[1]); });
+    if (dim.startsWith('duel')) {
+        return worldDuel.getTileAt(x, y, localDestroyed, world.getSeed());
+    }
+    return world.getTileAt(x, y, localDestroyed);
+};
+
+const findSafeTile = (x, y) => world.findSafeTile(x, y, destroyedBlocks, activeBombs); // Nota: findSafeTile precisaria de update para duelos, mas duelos são arenas fixas
 
 function getGameContext() {
-    return { activeBombs, destroyedBlocks, powerUps, activeFlames, enemies, getTileAt, spawnEnemy, io, broadcastChat, players };
+    return { activeBombs, destroyedBlocks, powerUps, activeFlames, enemies, getTileAt, spawnEnemy, io, broadcastChat, players, getDimKey };
 }
 
 function resetMapRound() {
@@ -63,21 +80,38 @@ function resetMapRound() {
 setInterval(() => {
     let moved = false;
     activeBombs.forEach((bomb, id) => {
+        // Física da bomba só interage com coisas na mesma dimensão
         if (bomb.sliding) {
             const nx = bomb.x + bomb.vx, ny = bomb.y + bomb.vy;
-            const tile = getTileAt(nx, ny);
-            const otherBomb = Array.from(activeBombs.values()).find(b => b.x === nx && b.y === ny);
-            const pAt = Object.values(players).find(p => p.x === nx && p.y === ny && !p.isDead);
-            const eAt = Object.values(enemies).find(e => e.x === nx && e.y === ny);
-            const iAt = powerUps.has(`${nx},${ny}`);
+            const tile = getTileAt(nx, ny, bomb.dimension);
+            const otherBomb = Array.from(activeBombs.values()).find(b => b.dimension === bomb.dimension && b.x === nx && b.y === ny);
+            const pAt = Object.values(players).find(p => p.dimension === bomb.dimension && p.x === nx && p.y === ny && !p.isDead);
+            const eAt = Object.values(enemies).find(e => e.dimension === bomb.dimension && e.x === nx && e.y === ny);
+            const iAt = powerUps.has(getDimKey(nx, ny, bomb.dimension));
             const enteringSafe = Math.abs(nx) <= 5 && Math.abs(ny) <= 5;
             if (tile === 0 && !otherBomb && !pAt && !eAt && !iAt && !enteringSafe) {
                 bomb.x = nx; bomb.y = ny; moved = true;
             } else { bomb.sliding = false; }
         }
     });
-    if (moved) io.emit('bombUpdate', Array.from(activeBombs.values()));
+    if (moved) broadcastBombs();
 }, 100);
+
+// Função auxiliar para enviar bombas apenas para as salas corretas
+function broadcastBombs() {
+    const bombsByDim = {};
+    activeBombs.forEach(b => {
+        if (!bombsByDim[b.dimension]) bombsByDim[b.dimension] = [];
+        bombsByDim[b.dimension].push(b);
+    });
+    // Envia para cada sala (dimensão) apenas as suas bombas
+    // Se uma dimensão não tem bombas, podemos enviar array vazio se necessário, mas o cliente lida bem
+    for (const dim in bombsByDim) {
+        io.to(dim).emit('bombUpdate', bombsByDim[dim]);
+    }
+    // Garante que 'main' receba update mesmo vazio se necessário, ou deixe o cliente limpar
+    if (!bombsByDim['main']) io.to('main').emit('bombUpdate', []);
+}
 
 setInterval(() => {
     if (destroyedBlocks.size === 0) return;
@@ -86,13 +120,30 @@ setInterval(() => {
     for (let i = 0; i < 5; i++) {
         const k = dArray[Math.floor(Math.random() * dArray.length)];
         if(!k) continue;
-        const [bx, by] = k.split(',').map(Number);
-        if (!Object.values(players).some(p => Math.abs(p.x - bx) < 8 && Math.abs(p.y - by) < 8)) {
+        // k agora é "dim:x,y"
+        const [dim, coords] = k.split(':');
+        const [bx, by] = coords.split(',').map(Number);
+        
+        // Só regenera se não tiver player perto NA MESMA DIMENSÃO
+        if (!Object.values(players).some(p => p.dimension === dim && Math.abs(p.x - bx) < 8 && Math.abs(p.y - by) < 8)) {
             destroyedBlocks.delete(k); reg = true;
         }
     }
-    if (reg) io.emit('mapUpdate', { destroyedBlocks: Array.from(destroyedBlocks) });
+    if (reg) broadcastMapUpdate();
 }, 10000);
+
+function broadcastMapUpdate() {
+    // Agrupa blocos por dimensão para enviar
+    const blocksByDim = {};
+    destroyedBlocks.forEach(k => {
+        const [dim, coords] = k.split(':');
+        if (!blocksByDim[dim]) blocksByDim[dim] = [];
+        blocksByDim[dim].push(coords); // Envia apenas "x,y" para o cliente
+    });
+    for (const dim in blocksByDim) {
+        io.to(dim).emit('mapUpdate', { destroyedBlocks: blocksByDim[dim] });
+    }
+}
 
 function spawnEnemy(specificPos = null, isRaging = false, invincibleDuration = 0, forceOffScreen = false) {
     const id = 'en_' + Date.now() + Math.random();
@@ -134,7 +185,7 @@ function spawnEnemy(specificPos = null, isRaging = false, invincibleDuration = 0
     // A cada 5 níveis, ganha +1 Bomba extra (Munição)
     if (bombs > 0) bombs += Math.floor(level / 5);
 
-    enemies[id] = { id, x: ex, y: ey, lastMove: Date.now(), type, isBuffed, bombs, radius, health, isRaging: isRaging ? Date.now() : null, invincibleUntil: invincibleDuration > 0 ? Date.now() + invincibleDuration : null, state: 'IDLE', level, speedMult, smartness, baseVision, alertedUntil: 0 };
+    enemies[id] = { id, x: ex, y: ey, dimension: 'main', lastMove: Date.now(), type, isBuffed, bombs, radius, health, isRaging: isRaging ? Date.now() : null, invincibleUntil: invincibleDuration > 0 ? Date.now() + invincibleDuration : null, state: 'IDLE', level, speedMult, smartness, baseVision, alertedUntil: 0 };
 }
 for (let i = 0; i < 240; i++) spawnEnemy();
 
@@ -152,11 +203,11 @@ setInterval(() => {
             if (now - (p.lastAutoBomb || 0) > 1500) {
                 p.lastAutoBomb = now;
                 // Tenta colocar bomba automaticamente
-                if (Array.from(activeBombs.values()).filter(b => b.owner === p.id).length < p.bombs) {
+                if (Array.from(activeBombs.values()).filter(b => b.owner === p.id && b.dimension === p.dimension).length < p.bombs) {
                     const bid = "ab_" + Date.now() + p.id;
                     const isPierce = p.pierceUntil && Date.now() < p.pierceUntil;
-                    activeBombs.set(bid, { x: p.x, y: p.y, id: bid, radius: p.radius, owner: p.id, sliding: false, isPierce: isPierce });
-                    io.emit('bombUpdate', Array.from(activeBombs.values()));
+                    activeBombs.set(bid, { x: p.x, y: p.y, dimension: p.dimension, id: bid, radius: p.radius, owner: p.id, sliding: false, isPierce: isPierce });
+                    broadcastBombs();
                     io.emit('sfx', 'place');
                     setTimeout(() => combat.detonateBomb(bid, p.id, getGameContext()), 2000);
                 }
@@ -166,7 +217,7 @@ setInterval(() => {
 
         if (p.ghostUntil && now > p.ghostUntil) {
             p.ghostUntil = null;
-            if (getTileAt(p.x, p.y) === 2) {
+            if (getTileAt(p.x, p.y, p.dimension) === 2) {
                 const safe = findSafeTile(p.x, p.y);
                 p.x = safe.x; p.y = safe.y;
                 broadcastChat({ id: 'SYSTEM', text: `[SYSTEM] ${p.name} rematerializou.`, system: true });
@@ -178,16 +229,24 @@ setInterval(() => {
         if (p.slowUntil && now > p.slowUntil) p.slowUntil = null;
         if (p.invertUntil && now > p.invertUntil) p.invertUntil = null;
 
-        Object.values(enemies).forEach(en => { if (en.x === p.x && en.y === p.y) resetPlayer(p, `eliminated by Glitch <${en.type}>`, 'error'); });
+        Object.values(enemies).forEach(en => { if (en.dimension === p.dimension && en.x === p.x && en.y === p.y) resetPlayer(p, `eliminated by Glitch <${en.type}>`, 'error'); });
         
-        const killingFlame = activeFlames.find(f => f.x === p.x && f.y === p.y);
+        const killingFlame = activeFlames.find(f => f.dimension === p.dimension && f.x === p.x && f.y === p.y);
         if (killingFlame) {
+            // --- MORTE EM DUELO ---
+            if (p.inDuel) {
+                duelManager.handleDuelDeath(p, killingFlame.owner, players, io, broadcastChat);
+                io.emit('sfx', 'powerup'); // Cura visual global (ou mover para dentro do manager se quiser)
+                return;
+            }
+            // ----------------------
+
             let cause = ""; let type = "error";
             if (killingFlame.owner === p.id) { cause = `committed suicide`; type = "warn"; } 
             else if (players[killingFlame.owner]) {
                 const killer = players[killingFlame.owner]; killer.sessionKills++;
                 killer.kills++; killer.score += 30;
-                io.emit('floatingText', { x: killer.x, y: killer.y, text: "+30" });
+                io.to(killer.dimension).emit('floatingText', { x: killer.x, y: killer.y, text: "+30" });
                 updateAndBroadcastRank(killer);
                 cause = `eliminated by ${killer.name}`;
                 // LOG: Jogador eliminou jogador
@@ -199,7 +258,7 @@ setInterval(() => {
 
     let enemyUpdate = false;
     Object.values(enemies).forEach(en => {
-        const flame = activeFlames.find(f => f.x === en.x && f.y === en.y);
+        const flame = activeFlames.find(f => f.dimension === en.dimension && f.x === en.x && f.y === en.y);
         if (flame) {
             if (en.invincibleUntil && now < en.invincibleUntil) {} 
             else {
@@ -208,7 +267,7 @@ setInterval(() => {
                 else {
                     if (players[flame.owner]) { 
                         players[flame.owner].score += 10; 
-                        io.emit('floatingText', { x: players[flame.owner].x, y: players[flame.owner].y, text: "+10" });
+                        io.to(players[flame.owner].dimension).emit('floatingText', { x: players[flame.owner].x, y: players[flame.owner].y, text: "+10" });
                         players[flame.owner].enemyKills++; players[flame.owner].sessionEnemyKills++;
                         updateAndBroadcastRank(players[flame.owner]); 
                         // LOG: Jogador eliminou Glitchie
@@ -227,10 +286,10 @@ setInterval(() => {
             en.state = decision.state || 'IDLE';
             if (decision.action === 'move') { en.x = decision.x; en.y = decision.y; enemyUpdate = true; }
             else if (decision.action === 'bomb') {
-                if (Array.from(activeBombs.values()).filter(b => b.owner === en.id).length < en.bombs) {
+                if (Array.from(activeBombs.values()).filter(b => b.owner === en.id && b.dimension === en.dimension).length < en.bombs) {
                     const bid = "eb_" + Date.now() + en.id;
-                    activeBombs.set(bid, { x: en.x, y: en.y, id: bid, radius: en.radius, owner: en.id, sliding: false, isPierce: false });
-                    io.emit('bombUpdate', Array.from(activeBombs.values()));
+                    activeBombs.set(bid, { x: en.x, y: en.y, dimension: en.dimension, id: bid, radius: en.radius, owner: en.id, sliding: false, isPierce: false });
+                    broadcastBombs();
                     io.emit('sfx', 'place');
                     setTimeout(() => combat.detonateBomb(bid, en.id, getGameContext()), 2000);
                 }
@@ -240,7 +299,7 @@ setInterval(() => {
             if (!en.state) en.state = 'IDLE';
         }
     });
-    if (enemyUpdate) io.emit('enemiesUpdate', enemies);
+    if (enemyUpdate) io.to('main').emit('enemiesUpdate', enemies); // Inimigos só existem na main por enquanto
 }, 50);
 
 function resetPlayer(p, causeMsg, notifType = 'error') {
@@ -267,6 +326,11 @@ function resetPlayer(p, causeMsg, notifType = 'error') {
     p.slowUntil = null; p.invertUntil = null; p.autoBombUntil = null; p.lastAutoBomb = 0;
     p.sessionPowerups = { bomb: 0, fire: 0, speed: 0, kick: 0, ghost: 0, pierce: 0 };
     p.isDead = true; 
+    p.inDuel = null; p.savedState = null; // Garante limpeza se morrer fora de duelo
+    p.dimension = 'main';
+    
+    const sock = io.sockets.sockets.get(p.id);
+    if(sock) { sock.join('main'); } // Garante que está na main
     
     io.to(p.id).emit('playerKilled', deathSummary);
     io.emit('notification', { text: `${p.name} ${causeMsg}`, type: notifType });
@@ -275,7 +339,7 @@ function resetPlayer(p, causeMsg, notifType = 'error') {
     // LOG: Jogador Morreu
     io.emit('activityLog', { name: p.name, color: p.color, action: `sofreu um erro:<br><span style="color:#cccccc">${causeMsg}</span>`, type: 'death' });
 
-    io.emit('playerMoved', p);
+    io.to('main').emit('playerMoved', p);
     io.emit('rankUpdate', Object.values(players).sort((a,b)=>b.score-a.score));
 }
 
@@ -290,6 +354,7 @@ io.on('connection', (socket) => {
 
         players[socket.id] = { 
             id: socket.id, name: name || "User", x: 0, y: 0, 
+            dimension: 'main', // Dimensão padrão
             score: 0, // A pontuação da sessão começa em 0
             bombs: 1, radius: 1, kickUntil: null, moveDelay: 150, pierceUntil: null, ghostUntil: null, lastMoveTime: 0,
             slowUntil: null, invertUntil: null, autoBombUntil: null, lastAutoBomb: 0,
@@ -307,7 +372,18 @@ io.on('connection', (socket) => {
             notified30: false, notified60: false, isDead: false 
         };
         
-        socket.emit('init', { id: socket.id, players, enemies, destroyedBlocks: Array.from(destroyedBlocks), activeBombs: Array.from(activeBombs.values()), powerUps: Array.from(powerUps), roundEndTime, mapSeed: world.getSeed() });
+        socket.join('main');
+
+        // Envia apenas dados da dimensão 'main' no init
+        const mainBlocks = [];
+        destroyedBlocks.forEach(k => { if(k.startsWith('main:')) mainBlocks.push(k.split(':')[1]); });
+        
+        const mainPowerups = [];
+        powerUps.forEach((v, k) => { if(k.startsWith('main:')) mainPowerups.push([k.split(':')[1], v]); });
+
+        const mainBombs = Array.from(activeBombs.values()).filter(b => b.dimension === 'main');
+
+        socket.emit('init', { id: socket.id, players, enemies, destroyedBlocks: mainBlocks, activeBombs: mainBombs, powerUps: mainPowerups, roundEndTime, mapSeed: world.getSeed() });
         socket.emit('chatHistory', storage.getChatHistory());
         
         broadcastChat({ id: 'SYSTEM', text: `[NET] ${players[socket.id].name} connected.`, system: true });
@@ -324,14 +400,14 @@ io.on('connection', (socket) => {
         // Aplica lentidão se o debuff estiver ativo (300ms delay = muito lento)
         const effectiveDelay = (p.slowUntil && now < p.slowUntil) ? 300 : p.moveDelay;
         if (p && !p.isDead && now - p.lastMoveTime > effectiveDelay) {
-            const bombAt = Array.from(activeBombs.values()).find(b => b.x === data.x && b.y === data.y);
+            const bombAt = Array.from(activeBombs.values()).find(b => b.dimension === p.dimension && b.x === data.x && b.y === data.y);
             if (bombAt && p.kickUntil && now < p.kickUntil && !bombAt.sliding) {
                 const vx = data.x - p.x, vy = data.y - p.y;
                 if (Math.abs(bombAt.x + vx) <= 5 && Math.abs(bombAt.y + vy) <= 5) return;
                 bombAt.sliding = true; bombAt.vx = vx; bombAt.vy = vy;
-                io.emit('sfx', 'kick'); io.emit('playerMoved', p); io.emit('bombUpdate', Array.from(activeBombs.values())); return;
+                io.to(p.dimension).emit('sfx', 'kick'); io.to(p.dimension).emit('playerMoved', p); broadcastBombs(); return;
             }
-            const tile = getTileAt(data.x, data.y);
+            const tile = getTileAt(data.x, data.y, p.dimension);
             if (!bombAt && (tile === 0 || (p.ghostUntil && now < p.ghostUntil && tile === 2))) {
                 p.x = data.x; p.y = data.y; p.lastMoveTime = now;
                 const dist = Math.max(Math.abs(p.x), Math.abs(p.y));
@@ -356,7 +432,7 @@ io.on('connection', (socket) => {
                 if (dist > 90 && !p.notified30) { p.notified30 = true; socket.emit('notification', { text: "INFO: Você já está quase na metade do caminho.", type: "info" }); }
                 if (dist > 160 && !p.notified60) { p.notified60 = true; socket.emit('notification', { text: "WARN: Você está chegando na borda...", type: "warn" }); }
                 
-                const key = `${p.x},${p.y}`;
+                const key = getDimKey(p.x, p.y, p.dimension);
                 if (powerUps.has(key)) {
                     const item = powerUps.get(key);
                     let powerMsg = "";
@@ -381,10 +457,13 @@ io.on('connection', (socket) => {
                     else if (item.type === 'debuff_autobomb') { p.autoBombUntil = now + 6000; powerMsg = "Auto-Bomba (6s)"; }
                     
                     p.score += 3;
-                    io.emit('floatingText', { x: p.x, y: p.y, text: "+3" });
+                    io.to(p.dimension).emit('floatingText', { x: p.x, y: p.y, text: "+3" });
 
                     powerUps.delete(key); 
-                    io.emit('powerUpsUpdate', Array.from(powerUps)); 
+                    // Update de powerups é complexo, melhor enviar apenas para a sala
+                    // Mas como powerUps é global, precisamos filtrar.
+                    // Simplificação: Envia update de powerups filtrado para a sala
+                    broadcastPowerUps(p.dimension);
                     io.emit('sfx', 'powerup');
 
                     // LOG: Jogador pegou PowerUp (Enviado a TODOS os clientes)
@@ -396,21 +475,51 @@ io.on('connection', (socket) => {
                         socket.emit('notification', { text: `PowerUp: ${powerMsg}`, type: "info" });
                     }
                 }
-                io.emit('playerMoved', p); io.emit('rankUpdate', Object.values(players).sort((a,b)=>b.score-a.score));
+                io.to(p.dimension).emit('playerMoved', p); io.emit('rankUpdate', Object.values(players).sort((a,b)=>b.score-a.score));
             }
         }
     });
+
+    function broadcastPowerUps(dim) {
+        const list = [];
+        powerUps.forEach((v, k) => {
+            if (k.startsWith(dim + ':')) list.push([k.split(':')[1], v]);
+        });
+        io.to(dim).emit('powerUpsUpdate', list);
+    }
     
     socket.on('placeBomb', (data) => {
         const p = players[socket.id];
-        if (Math.abs(data.x) <= 5 && Math.abs(data.y) <= 5) return;
-        if (p && !p.isDead && Array.from(activeBombs.values()).filter(b => b.owner === socket.id).length < p.bombs) {
+        // Verifica spawn apenas se estiver na main
+        if (p.dimension === 'main' && Math.abs(data.x) <= 5 && Math.abs(data.y) <= 5) return;
+        
+        if (p && !p.isDead && Array.from(activeBombs.values()).filter(b => b.owner === socket.id && b.dimension === p.dimension).length < p.bombs) {
             const bid = "b_" + Date.now() + socket.id;
             const isPierce = p.pierceUntil && Date.now() < p.pierceUntil;
-            activeBombs.set(bid, { x: data.x, y: data.y, id: bid, radius: p.radius, owner: socket.id, sliding: false, isPierce: isPierce });
-            io.emit('bombUpdate', Array.from(activeBombs.values()));
+            activeBombs.set(bid, { x: data.x, y: data.y, dimension: p.dimension, id: bid, radius: p.radius, owner: socket.id, sliding: false, isPierce: isPierce });
+            broadcastBombs();
             io.emit('sfx', 'place');
             setTimeout(() => combat.detonateBomb(bid, socket.id, getGameContext()), 2000);
+        }
+    });
+
+    // --- EVENTOS DE DUELO ---
+    socket.on('challengeRequest', (targetId) => {
+        const challenger = players[socket.id];
+        const target = players[targetId];
+        if (challenger && target && !challenger.inDuel && !target.inDuel && !challenger.isDead && !target.isDead) {
+            io.to(targetId).emit('challengeReceived', { from: socket.id, name: challenger.name });
+            socket.emit('notification', { text: `Desafio enviado para ${target.name}...`, type: "info" });
+        }
+    });
+
+    socket.on('challengeResponse', (data) => {
+        const responder = players[socket.id];
+        const challenger = players[data.challengerId];
+        if (data.accepted) {
+            if (responder && challenger) duelManager.startDuel(challenger, responder, io, broadcastChat);
+        } else {
+            if (responder && challenger) broadcastChat({ id: 'SYSTEM', text: `[DUEL] 🐔 ${responder.name} arregou o desafio de ${challenger.name}!`, system: true });
         }
     });
 

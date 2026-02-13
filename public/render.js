@@ -37,6 +37,15 @@ const MAP_RADIUS = 187;
 const PLAYABLE_RADIUS = 182;
 
 function getTileAt(gx, gy) {
+    // --- RENDERIZAÇÃO DA ARENA DE DUELO ---
+    // Verifica a dimensão atual do jogador (definida em game.js)
+    if (window.myDimension && window.myDimension.startsWith('duel')) {
+        // Usa a lógica separada em world_duel.js (assumindo que foi carregado)
+        if (window.DuelWorld) return window.DuelWorld.getTileAt(gx, gy, window.mapSeed || 0);
+        return 0; // Fallback
+    }
+    // --------------------------------------
+
     if (Math.abs(gx) > MAP_RADIUS || Math.abs(gy) > MAP_RADIUS) return 0;
     if (Math.abs(gx) > PLAYABLE_RADIUS || Math.abs(gy) > PLAYABLE_RADIUS) return 1;
 

@@ -4,11 +4,12 @@ function detonateBomb(bombId, sourceId, ctx) {
     // Desestruturando o contexto passado pelo servidor
     const {
         activeBombs, destroyedBlocks, powerUps, activeFlames, enemies,
-        getTileAt, spawnEnemy, io, broadcastChat, players
+        getTileAt, spawnEnemy, io, broadcastChat, players, getDimKey
     } = ctx;
 
     const bomb = activeBombs.get(bombId);
     if (!bomb) return;
+    const dim = bomb.dimension || 'main';
 
     const isPierce = bomb.isPierce;
     const area = []; 
@@ -19,30 +20,30 @@ function detonateBomb(bombId, sourceId, ctx) {
         for (let i = 1; i <= bomb.radius; i++) {
             const tx = bomb.x + (d[0] * i); 
             const ty = bomb.y + (d[1] * i);
-            const tile = getTileAt(tx, ty);
+            const tile = getTileAt(tx, ty, dim);
             
             if (tile === 1) break; // Parede de metal: para a explosão
             
             area.push({ x: tx, y: ty });
             
             if (tile === 2) { // Bloco de madeira: quebra o bloco
-                const key = `${tx},${ty}`;
+                const key = getDimKey(tx, ty, dim);
                 destroyedBlocks.add(key);
                 
                 if (players[sourceId]) {
                     players[sourceId].score += 1;
-                    io.emit('floatingText', { x: players[sourceId].x, y: players[sourceId].y, text: "+1" });
+                    io.to(dim).emit('floatingText', { x: players[sourceId].x, y: players[sourceId].y, text: "+1" });
                 }
                 
                 // Lógica do Bloco Infectado
                 const distCenter = Math.max(Math.abs(tx), Math.abs(ty));
-                const isInf = (distCenter > 20) && (Math.abs(Math.cos(tx * 43.11 + ty * 18.23) * 1234.56) % 1 < 0.005);
+                const isInf = (dim === 'main') && (distCenter > 20) && (Math.abs(Math.cos(tx * 43.11 + ty * 18.23) * 1234.56) % 1 < 0.005);
                 
                 if (isInf) {
                     broadcastChat({ id: 'SYSTEM', text: `[WARN] INFECTED BLOCK RELEASED.`, system: true });
                     // Spawna 8 inimigos "enfurecidos" ao redor
                     for (let j = 0; j < 8; j++) spawnEnemy({ x: tx, y: ty }, true, 2000);
-                    io.emit('enemiesUpdate', enemies);
+                    io.to('main').emit('enemiesUpdate', enemies);
                 } else if (Math.random() < 0.20) { 
                     // Sorteio de PowerUp
                     const rnd = Math.random(); 
@@ -74,39 +75,59 @@ function detonateBomb(bombId, sourceId, ctx) {
     });
 
     activeBombs.delete(bombId);
-    io.emit('bombUpdate', Array.from(activeBombs.values()));
+    
+    // Update bombs for this dimension
+    const dimBombs = Array.from(activeBombs.values()).filter(b => b.dimension === dim);
+    io.to(dim).emit('bombUpdate', dimBombs);
     
     const now = Date.now();
     
     area.forEach(t => {
-        if (Math.abs(t.x) <= 5 && Math.abs(t.y) <= 5) return; // Zona de Spawn
+        if (dim === 'main' && Math.abs(t.x) <= 5 && Math.abs(t.y) <= 5) return; // Zona de Spawn (Apenas Main)
         
-        const key = `${t.x},${t.y}`;
+        const key = getDimKey(t.x, t.y, dim);
         const item = powerUps.get(key);
         
         // Destrói power-ups que já estavam no chão
         if (item && (now - item.spawnTime > 2000)) { 
             powerUps.delete(key); 
-            io.emit('powerUpsUpdate', Array.from(powerUps)); 
+            // Filter powerups for update
+            const localPowerUpsUpdate = [];
+            powerUps.forEach((v, k) => {
+                if (k.startsWith(dim + ':')) localPowerUpsUpdate.push([k.split(':')[1], v]);
+            });
+            io.to(dim).emit('powerUpsUpdate', localPowerUpsUpdate); 
         }
         
         // Registra o fogo para matar jogadores e inimigos
-        activeFlames.push({ x: t.x, y: t.y, time: now, owner: sourceId });
+        activeFlames.push({ x: t.x, y: t.y, dimension: dim, time: now, owner: sourceId });
     });
 
     // Reações em Cadeia: se atingir outra bomba, ela explode na hora
     activeBombs.forEach((ob, oid) => { 
-        if (area.some(t => t.x === ob.x && t.y === ob.y)) {
+        if (ob.dimension === dim && area.some(t => t.x === ob.x && t.y === ob.y)) {
             detonateBomb(oid, sourceId, ctx); 
         }
     });
 
+    // Filter destroyed blocks for this dimension
+    const localDestroyed = [];
+    destroyedBlocks.forEach(k => {
+        if (k.startsWith(dim + ':')) localDestroyed.push(k.split(':')[1]);
+    });
+
+    // Filter powerups for this dimension
+    const localPowerUps = [];
+    powerUps.forEach((v, k) => {
+        if (k.startsWith(dim + ':')) localPowerUps.push([k.split(':')[1], v]);
+    });
+
     // Emite o visual da explosão
-    io.emit('explosion', { 
+    io.to(dim).emit('explosion', { 
         area, 
         bombId, 
-        destroyedBlocks: Array.from(destroyedBlocks), 
-        powerUps: Array.from(powerUps), 
+        destroyedBlocks: localDestroyed, 
+        powerUps: localPowerUps, 
         isPierce: isPierce 
     });
 }

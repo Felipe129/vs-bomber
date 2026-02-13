@@ -55,6 +55,7 @@ window.restartSession = function() {
 let myId, players = {}, enemies = {}, explosions = [], currentBombs = [];
 let destroyedBlocks = new Set(), powerUps = new Map(), joined = false;
 let myPos = { x: 0, y: 0, rx: 0, ry: 0 }; 
+let myDimension = 'main'; // Rastreia a dimensão atual
 let chatting = false, lastStep = 0, lastBomb = 0, floatingTexts = [];
 
 // --- SISTEMA DE ACTIVITY LOG GLOBAL ---
@@ -145,6 +146,7 @@ socket.on('init', d => {
     joined = true;
     window.mapSeed = d.mapSeed || 0; // Recebe a semente do mapa
     myId = d.id; players = d.players; enemies = {};
+    if (players[myId]) myDimension = players[myId].dimension || 'main';
     Object.values(d.enemies).forEach(en => { enemies[en.id] = { ...en, rx: en.x, ry: en.y }; });
     destroyedBlocks = new Set(d.destroyedBlocks); currentBombs = d.activeBombs;
     powerUps = new Map(d.powerUps); roundEndTime = d.roundEndTime; 
@@ -184,6 +186,7 @@ socket.on('playerMoved', p => {
                 players[myId].rx = p.x;
                 players[myId].ry = p.y;
             }
+            myDimension = p.dimension || 'main'; // Atualiza dimensão local
             
             // Atualiza status sem resetar a posição x/y local se estivermos sincronizados
             Object.assign(players[myId], {
@@ -258,6 +261,36 @@ socket.on('chatMessage', d => {
     }
 });
 
+// --- SISTEMA DE DUELO (CLIENTE) ---
+socket.on('challengeReceived', (data) => {
+    showChallengePopup(data);
+});
+
+function showChallengePopup(data) {
+    const popup = document.createElement('div');
+    Object.assign(popup.style, {
+        position: 'fixed', top: '20%', left: '50%', transform: 'translate(-50%, -50%)',
+        backgroundColor: '#252526', border: '2px solid #f14c4c', padding: '20px',
+        zIndex: '2000', color: '#fff', fontFamily: 'Consolas', textAlign: 'center',
+        boxShadow: '0 0 20px rgba(0,0,0,0.8)'
+    });
+    
+    popup.innerHTML = `
+        <h3 style="color:#f14c4c; margin-top:0;">⚔️ DESAFIO ⚔️</h3>
+        <p><span style="color:#569cd6">${data.name}</span> te desafiou para um x1!</p>
+        <div style="margin-top:15px; display:flex; gap:10px; justify-content:center;">
+            <button id="btn-accept" style="background:#6a9955; color:white; border:none; padding:8px 15px; cursor:pointer;">ACEITAR</button>
+            <button id="btn-decline" style="background:#f14c4c; color:white; border:none; padding:8px 15px; cursor:pointer;">RECUSAR</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+
+    const close = (accepted) => { popup.remove(); socket.emit('challengeResponse', { accepted, challengerId: data.from }); };
+    document.getElementById('btn-accept').onclick = () => close(true);
+    document.getElementById('btn-decline').onclick = () => close(false);
+}
+// ----------------------------------
+
 function appendChatMsg(d) {
     const box = document.getElementById('chat-history'); 
     const msg = document.createElement('div');
@@ -277,9 +310,13 @@ socket.on('rankUpdate', list => {
         let isGhost = (p.ghostUntil && p.ghostUntil > now);
         let canKick = (p.kickUntil && p.kickUntil > now);
         const speedLevel = Math.round(Math.max(0, (150 - p.moveDelay) / 20));
+        
+        // Botão de Desafio (não mostra para si mesmo)
+        const challengeBtn = (p.id !== myId) ? `<button onclick="socket.emit('challengeRequest', '${p.id}')" style="background:none; border:none; cursor:pointer; font-size:14px;" title="Desafiar para x1">⚔️</button>` : '';
 
         return `<div style="padding: 4px 10px; border-bottom: 1px solid #2b2b2b; font-family: Consolas; font-size: 11px;">
-            <div style="display:flex; justify-content:space-between;"><span style="color:${p.color}">#${p.name}</span><span style="color:#6a9955">[${p.x}, ${p.y}]</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span><span style="color:${p.color}">#${p.name}</span> ${challengeBtn}</span> <span style="color:#6a9955">[${p.x}, ${p.y}]</span></div>
             <div style="color:#808080;">LVL: ${p.level || 0} | Score: ${p.score}</div>
             <div style="color:#808080;">B:${p.bombs} F:${p.radius} S:${speedLevel}</div>
             ${isGhost ? '<span style="color:#c586c0">ghost </span>' : ''}${canKick ? '<span style="color:#dcdcaa">kick </span>' : ''}
